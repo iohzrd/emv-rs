@@ -1,5 +1,6 @@
 //! Book 3 §10.3 / Book 2 §5 / §6.5 / §6.6 - RSA-based Offline Data Authentication.
 
+use crate::core::compressed_numeric;
 use crate::core::error::{Error, Result};
 use crate::core::iso9796_2;
 use sha1::{Digest, Sha1};
@@ -688,16 +689,16 @@ pub fn verify_cda(
 /// matches the leftmost 3-8 digits of `pan` (any-length BCD,
 /// `'F'`-padded). Per Book 2 §5.3 step 8.
 fn issuer_identifier_matches_pan(issuer_id: &[u8; 4], pan: &[u8]) -> bool {
-    let id_digits = match decode_bcd_skip_f(issuer_id) {
-        Some(d) => d,
-        None => return false,
+    let id_digits = match compressed_numeric::decode(issuer_id) {
+        Ok(d) => d,
+        Err(_) => return false,
     };
     if !(3..=8).contains(&id_digits.len()) {
         return false;
     }
-    let pan_digits = match decode_bcd_skip_f(pan) {
-        Some(d) => d,
-        None => return false,
+    let pan_digits = match compressed_numeric::decode(pan) {
+        Ok(d) => d,
+        Err(_) => return false,
     };
     pan_digits.starts_with(&id_digits)
 }
@@ -708,32 +709,15 @@ fn issuer_identifier_matches_pan(issuer_id: &[u8; 4], pan: &[u8]) -> bool {
 /// PAN must match the PAN read from the ICC exactly, after stripping
 /// trailing `'F'` padding.
 fn app_pan_matches(app_pan: &[u8; 10], pan: &[u8]) -> bool {
-    let app_digits = match decode_bcd_skip_f(app_pan) {
-        Some(d) => d,
-        None => return false,
+    let app_digits = match compressed_numeric::decode(app_pan) {
+        Ok(d) => d,
+        Err(_) => return false,
     };
-    let pan_digits = match decode_bcd_skip_f(pan) {
-        Some(d) => d,
-        None => return false,
+    let pan_digits = match compressed_numeric::decode(pan) {
+        Ok(d) => d,
+        Err(_) => return false,
     };
     app_digits == pan_digits
-}
-
-/// Decode BCD nibbles into decimal digits, stopping at the first
-/// `'F'` nibble. Returns `None` if any nibble is in `A..=E` (invalid
-/// BCD).
-fn decode_bcd_skip_f(bytes: &[u8]) -> Option<Vec<u8>> {
-    let mut out = Vec::with_capacity(bytes.len() * 2);
-    for &byte in bytes {
-        for nibble in [byte >> 4, byte & 0x0F] {
-            match nibble {
-                0..=9 => out.push(nibble),
-                0xF => return Some(out),
-                _ => return None,
-            }
-        }
-    }
-    Some(out)
 }
 
 /// True iff `cert_mmyy` (BCD month / BCD year) is on or after

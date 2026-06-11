@@ -225,19 +225,7 @@ impl<'t> TransactionContext<'t> {
         &self,
         offline_consult_online_acs: bool,
     ) -> Result<ApplicationCryptogramType> {
-        let selected = self.selected.as_ref().ok_or(Error::MissingMandatory {
-            tag: tags::APPLICATION_DEDICATED_FILE_NAME,
-        })?;
-        let cfg = selected.config;
-
-        let action_codes = ActionCodes {
-            iac_denial: read_optional_action_code(&self.tag_store, tags::IAC_DENIAL)?,
-            iac_online: read_optional_action_code(&self.tag_store, tags::IAC_ONLINE)?,
-            iac_default: read_optional_action_code(&self.tag_store, tags::IAC_DEFAULT)?,
-            tac_denial: cfg.tac_denial,
-            tac_online: cfg.tac_online,
-            tac_default: cfg.tac_default,
-        };
+        let action_codes = self.action_codes()?;
 
         let capability = match self.terminal.terminal_type.attendance_capability() {
             AttendanceCapability::OnlineOnly => TerminalCapability::OnlineOnly,
@@ -253,6 +241,39 @@ impl<'t> TransactionContext<'t> {
             &action_codes,
             capability,
         ))
+    }
+
+    /// Book 4 §6.3.2.2.4 — TAA using TAC-Denial / IAC-Denial after a first
+    /// GENERATE AC XDA failure; `true` ⇒ decline.
+    pub fn xda_failure_denial_decision(&self) -> Result<bool> {
+        Ok(terminal_action_analysis::denial_decision(
+            &self.tvr,
+            &self.action_codes()?,
+        ))
+    }
+
+    /// §10.7 — default-action decision when the terminal was unable to
+    /// process the transaction online.
+    pub fn unable_to_go_online_decision(&self) -> Result<ApplicationCryptogramType> {
+        Ok(terminal_action_analysis::unable_to_go_online_decision(
+            &self.tvr,
+            &self.action_codes()?,
+        ))
+    }
+
+    fn action_codes(&self) -> Result<ActionCodes> {
+        let selected = self.selected.as_ref().ok_or(Error::MissingMandatory {
+            tag: tags::APPLICATION_DEDICATED_FILE_NAME,
+        })?;
+        let cfg = selected.config;
+        Ok(ActionCodes {
+            iac_denial: read_optional_action_code(&self.tag_store, tags::IAC_DENIAL)?,
+            iac_online: read_optional_action_code(&self.tag_store, tags::IAC_ONLINE)?,
+            iac_default: read_optional_action_code(&self.tag_store, tags::IAC_DEFAULT)?,
+            tac_denial: cfg.tac_denial,
+            tac_online: cfg.tac_online,
+            tac_default: cfg.tac_default,
+        })
     }
 }
 
@@ -398,6 +419,7 @@ mod tests {
             merchant_identifier: [b'M'; 15],
             merchant_name_and_location: b"Merchant".to_vec(),
             acquirer_identifier: None,
+            cardholder_selection_and_confirmation_supported: true,
             applications: vec![TerminalApplication {
                 aid: vec![0xA0, 0, 0, 0, 0x03, 0x10, 0x10],
                 partial_match_allowed: false,

@@ -25,6 +25,8 @@ pub struct Terminal {
     pub merchant_name_and_location: Vec<u8>,
     /// '9F01' n6 packed BCD.
     pub acquirer_identifier: Option<[u8; 6]>,
+    /// Book 1 §12.4 - single configuration option covering both features.
+    pub cardholder_selection_and_confirmation_supported: bool,
     pub applications: Vec<TerminalApplication>,
 }
 
@@ -110,6 +112,7 @@ mod tests {
             merchant_identifier: [b'M'; 15],
             merchant_name_and_location: b"Merchant".to_vec(),
             acquirer_identifier: None,
+            cardholder_selection_and_confirmation_supported: true,
             applications: apps,
         }
     }

@@ -79,6 +79,13 @@ pub struct TerminalConfig {
     pub terminal_type: String,
     pub terminal_capabilities: String,
     pub additional_terminal_capabilities: String,
+    /// Book 1 §12.4 - defaults to the preferred method (step 4).
+    #[serde(default = "default_true")]
+    pub cardholder_selection_and_confirmation_supported: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl TerminalConfig {
@@ -408,6 +415,8 @@ pub fn assemble_terminal(
         merchant_identifier,
         merchant_name_and_location,
         acquirer_identifier,
+        cardholder_selection_and_confirmation_supported: terminal
+            .cardholder_selection_and_confirmation_supported,
         applications,
     })
 }
@@ -478,6 +487,7 @@ mod tests {
             terminal_type: "22".into(),
             terminal_capabilities: "60A8C8".into(),
             additional_terminal_capabilities: "6000B03000".into(),
+            cardholder_selection_and_confirmation_supported: true,
         }
     }
 

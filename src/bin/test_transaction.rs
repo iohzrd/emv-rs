@@ -20,7 +20,7 @@ use emv::contact::online_processing::{
     OnlineAuthorisation, OnlineAuthorisationOutcome, OnlineAuthorisationResponse,
     second_generate_ac_after_online,
 };
-use emv::contact::cardholder_verification::CvmExecutionResult;
+use emv::contact::cardholder_verification::{self, CvmExecutionResult};
 use emv::contact::processing_restrictions::TransactionCategory;
 use emv::core::tag_store::Source;
 use emv::core::tags;
@@ -371,11 +371,7 @@ fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     println!();
 
     // Phase 3.5: Processing Restrictions (B3 §10.4)
-    let category = match tx.ctx.inputs.transaction_type {
-        0x00 | 0x09 => TransactionCategory::Purchase,
-        0x01 => TransactionCategory::Cash,
-        _ => TransactionCategory::Other,
-    };
+    let category = TransactionCategory::from_transaction_type(tx.ctx.inputs.transaction_type);
     let has_cashback = tx.ctx.inputs.amount_other > 0;
     let pr = tx
         .ctx
@@ -403,7 +399,8 @@ fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         transaction_in_application_currency: true,
         ..Default::default()
     };
-    let pin_encipherment_pk = recover_icc_pin_pk_best_effort(&tx.ctx, &rsa_keys);
+    let pin_encipherment_pk =
+        cardholder_verification::recover_pin_encipherment_public_key(&tx.ctx, &rsa_keys);
     if let Some(pk) = &pin_encipherment_pk {
         println!(
             "ICC PIN Encipherment PK ready ({} bytes).",
@@ -825,116 +822,15 @@ fn run_plaintext_offline_pin(card: &mut PcscCardReader) -> CvmExecutionResult {
             return CvmExecutionResult::PinEntryBypassed;
         }
     };
-    let cmd = match emv::core::verify::command_plaintext_pin(&pin) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("PIN block construction failed: {:?}", e);
-            return CvmExecutionResult::PinPadNotWorkingOrAbsent;
-        }
-    };
-    let resp = match emv::core::card_reader::CardReader::transmit(card, &cmd) {
+    let result = match cardholder_verification::verify_plaintext_offline_pin(card, &pin) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("VERIFY transport error: {:?}", e);
-            return CvmExecutionResult::PinPadNotWorkingOrAbsent;
+            eprintln!("VERIFY: {:?} - transaction shall be terminated (Book 3 §6.3.5).", e);
+            return CvmExecutionResult::Failed;
         }
     };
-    let sw = resp.status_word();
-    match sw {
-        0x9000 => {
-            println!("VERIFY → 9000 (PIN OK).");
-            CvmExecutionResult::Successful
-        }
-        0x6983 | 0x6984 => {
-            println!("VERIFY → {:04X} (PIN blocked).", sw);
-            CvmExecutionResult::PinTryLimitExceeded
-        }
-        sw if (sw & 0xFFF0) == 0x63C0 => {
-            let retries = sw & 0x000F;
-            println!("VERIFY → {:04X} (PIN incorrect, {} retries left).", sw, retries);
-            if retries == 0 {
-                CvmExecutionResult::PinTryLimitExceeded
-            } else {
-                CvmExecutionResult::Failed
-            }
-        }
-        _ => {
-            println!("VERIFY → {:04X} (unexpected).", sw);
-            CvmExecutionResult::PinPadNotWorkingOrAbsent
-        }
-    }
-}
-
-// Book 2 §7.1
-fn recover_icc_pin_pk_best_effort(
-    ctx: &TransactionContext<'_>,
-    capks: &[emv::core::oda::CaPublicKey],
-) -> Option<emv::core::oda::IccPublicKey> {
-    // Case 1: separate ICC PIN Encipherment PK certificate.
-    if let Some(cert) = ctx.tag_store.get(tags::ICC_PIN_ENCIPHERMENT_PK_CERTIFICATE) {
-        let cert = cert.to_vec();
-        let exp = ctx.tag_store.get(tags::ICC_PIN_ENCIPHERMENT_PK_EXPONENT)?.to_vec();
-        let remainder = ctx
-            .tag_store
-            .get(tags::ICC_PIN_ENCIPHERMENT_PK_REMAINDER)
-            .map(|b| b.to_vec());
-        let issuer_pk = recover_issuer_pk_for_pin(ctx, capks)?;
-        let pan = ctx.tag_store.get(tags::PAN)?.to_vec();
-        let today = [
-            ctx.inputs.transaction_date[0],
-            ctx.inputs.transaction_date[1],
-        ];
-        return emv::core::oda::recover_icc_pin_encipherment_public_key(
-            &issuer_pk,
-            &cert,
-            remainder.as_deref(),
-            &exp,
-            &pan,
-            today,
-        )
-        .ok();
-    }
-    // Case 2: fall back to the ICC PK already recovered by CDA arming.
-    ctx.cda.as_ref().map(|c| c.icc_public_key.clone())
-}
-
-fn recover_issuer_pk_for_pin(
-    ctx: &TransactionContext<'_>,
-    capks: &[emv::core::oda::CaPublicKey],
-) -> Option<emv::core::oda::IssuerPublicKey> {
-    let ca_index_bytes = ctx.tag_store.get(tags::CA_PUBLIC_KEY_INDEX_ICC)?;
-    if ca_index_bytes.len() != 1 {
-        return None;
-    }
-    let ca_index = ca_index_bytes[0];
-    let issuer_cert = ctx.tag_store.get(tags::ISSUER_PUBLIC_KEY_CERTIFICATE)?.to_vec();
-    let issuer_exp = ctx.tag_store.get(tags::ISSUER_PUBLIC_KEY_EXPONENT)?.to_vec();
-    let issuer_remainder = ctx
-        .tag_store
-        .get(tags::ISSUER_PUBLIC_KEY_REMAINDER)
-        .map(|b| b.to_vec());
-    let pan = ctx.tag_store.get(tags::PAN)?.to_vec();
-    let today = [
-        ctx.inputs.transaction_date[0],
-        ctx.inputs.transaction_date[1],
-    ];
-
-    let selected = ctx.selected.as_ref()?;
-    if selected.df_name.len() < 5 {
-        return None;
-    }
-    let rid: [u8; 5] = selected.df_name[..5].try_into().ok()?;
-    let capk = capks.iter().find(|k| k.rid == rid && k.index == ca_index)?;
-
-    emv::core::oda::recover_issuer_public_key(
-        capk,
-        &issuer_cert,
-        issuer_remainder.as_deref(),
-        &issuer_exp,
-        &pan,
-        today,
-    )
-    .ok()
+    println!("VERIFY → {:?}", result);
+    result
 }
 
 // Book 2 §7.2 + Book 3 §10.5.1
@@ -949,101 +845,23 @@ fn run_enciphered_offline_pin(
             return CvmExecutionResult::PinEntryBypassed;
         }
     };
-    let pin_block = match emv::core::verify::plaintext_pin_block(&pin) {
-        Ok(b) => b,
-        Err(e) => {
-            eprintln!("PIN block construction failed: {:?}", e);
-            return CvmExecutionResult::PinPadNotWorkingOrAbsent;
-        }
-    };
-
-    // §7.2 step 2: GET CHALLENGE
-    let challenge_resp = match emv::core::card_reader::CardReader::transmit(card, &emv::core::get_challenge::command()) {
+    let result = cardholder_verification::verify_enciphered_offline_pin(card, &pin, pin_pk, |buf| {
+        File::open("/dev/urandom")
+            .and_then(|mut f| f.read_exact(buf))
+            .is_ok()
+    });
+    let result = match result {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("GET CHALLENGE transport error: {:?}", e);
-            return CvmExecutionResult::PinPadNotWorkingOrAbsent;
-        }
-    };
-    if challenge_resp.status_word() != 0x9000 || challenge_resp.data().len() != 8 {
-        eprintln!(
-            "GET CHALLENGE returned SW={:04X}, len={} (expected 9000 + 8 bytes).",
-            challenge_resp.status_word(),
-            challenge_resp.data().len()
-        );
-        return CvmExecutionResult::PinPadNotWorkingOrAbsent;
-    }
-    let mut icc_un = [0u8; 8];
-    icc_un.copy_from_slice(challenge_resp.data());
-
-    // §7.2 step 3: random padding, N-17 bytes.
-    let pad_len = match pin_pk.modulus.len().checked_sub(17) {
-        Some(n) => n,
-        None => {
-            eprintln!("ICC PIN PK modulus too short ({} bytes).", pin_pk.modulus.len());
-            return CvmExecutionResult::PinPadNotWorkingOrAbsent;
-        }
-    };
-    let mut padding = vec![0u8; pad_len];
-    if let Err(e) = File::open("/dev/urandom").and_then(|mut f| f.read_exact(&mut padding)) {
-        eprintln!("Random padding generation failed: {}", e);
-        return CvmExecutionResult::PinPadNotWorkingOrAbsent;
-    }
-
-    // §7.2 step 4: RSA-encipher Table 25 block.
-    let enciphered = match emv::core::pin_encipherment::enciphered_pin_data(
-        pin_block,
-        icc_un,
-        &padding,
-        &pin_pk.modulus,
-        &pin_pk.exponent,
-    ) {
-        Ok(d) => d,
-        Err(e) => {
-            eprintln!("PIN encipherment failed: {:?}", e);
-            return CvmExecutionResult::PinPadNotWorkingOrAbsent;
-        }
-    };
-
-    let cmd = emv::core::verify::command(
-        emv::core::verify::VerifyQualifier::EncipheredPinRsa,
-        enciphered,
-        false,
-    );
-    let resp = match emv::core::card_reader::CardReader::transmit(card, &cmd) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("VERIFY (enciphered) transport error: {:?}", e);
-            return CvmExecutionResult::PinPadNotWorkingOrAbsent;
-        }
-    };
-    let sw = resp.status_word();
-    match sw {
-        0x9000 => {
-            println!("VERIFY (enciphered) → 9000 (PIN OK).");
-            CvmExecutionResult::Successful
-        }
-        0x6983 | 0x6984 => {
-            println!("VERIFY (enciphered) → {:04X} (PIN blocked).", sw);
-            CvmExecutionResult::PinTryLimitExceeded
-        }
-        sw if (sw & 0xFFF0) == 0x63C0 => {
-            let retries = sw & 0x000F;
-            println!(
-                "VERIFY (enciphered) → {:04X} (PIN incorrect, {} retries left).",
-                sw, retries
+            eprintln!(
+                "VERIFY (enciphered): {:?} - transaction shall be terminated (Book 3 §6.3.5).",
+                e
             );
-            if retries == 0 {
-                CvmExecutionResult::PinTryLimitExceeded
-            } else {
-                CvmExecutionResult::Failed
-            }
+            return CvmExecutionResult::Failed;
         }
-        _ => {
-            println!("VERIFY (enciphered) → {:04X} (unexpected).", sw);
-            CvmExecutionResult::PinPadNotWorkingOrAbsent
-        }
-    }
+    };
+    println!("VERIFY (enciphered) → {:?}", result);
+    result
 }
 
 // Book 4 §6.3.4.2 - online PIN handling is acquirer-side; this stub only prompts.

@@ -2,6 +2,9 @@
 
 use crate::core::apdu::{Cla, Command, Ins};
 
+/// §6.5.6.3 - the response data is an 8-byte unpredictable number.
+pub const CHALLENGE_LENGTH: usize = 8;
+
 pub fn command() -> Command {
     Command {
         cla: Cla(0x00),

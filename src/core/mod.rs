@@ -8,6 +8,7 @@ pub mod application_cryptogram_type;
 pub mod application_unblock;
 pub mod card_block;
 pub mod card_reader;
+pub mod compressed_numeric;
 pub mod crl;
 pub mod dol;
 pub mod ec_encryption;

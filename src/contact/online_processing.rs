@@ -121,6 +121,7 @@ mod tests {
             merchant_identifier: [0; 15],
             merchant_name_and_location: vec![],
             acquirer_identifier: None,
+            cardholder_selection_and_confirmation_supported: true,
             applications: vec![TerminalApplication {
                 aid: vec![0xA0, 0, 0, 0, 0x03, 0x10, 0x10],
                 partial_match_allowed: false,

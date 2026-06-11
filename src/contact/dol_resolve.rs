@@ -146,7 +146,8 @@ fn terminal_value_for(tag: Tag, ctx: &TransactionContext<'_>) -> Option<(ValueFo
     }
 }
 
-fn bcd_u64(mut value: u64, byte_len: usize) -> Vec<u8> {
+/// Annex B — right-justified BCD with leading zeroes (format n).
+pub fn bcd_u64(mut value: u64, byte_len: usize) -> Vec<u8> {
     let n_digits = byte_len * 2;
     let mut digits = vec![0u8; n_digits];
     for slot in digits.iter_mut().rev() {
@@ -195,6 +196,7 @@ mod tests {
             merchant_identifier: *b"MERCHANT0000001",
             merchant_name_and_location: b"Acme Corp / NYC".to_vec(),
             acquirer_identifier: Some([0x12, 0x34, 0x56, 0x78, 0x90, 0x12]),
+            cardholder_selection_and_confirmation_supported: true,
             applications: vec![TerminalApplication {
                 aid: vec![0xA0, 0, 0, 0, 0x03, 0x10, 0x10],
                 partial_match_allowed: false,

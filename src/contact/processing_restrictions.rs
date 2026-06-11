@@ -17,6 +17,19 @@ pub enum TransactionCategory {
     Other,
 }
 
+impl TransactionCategory {
+    /// '9C' Transaction Type - first two digits of the ISO 8583:1987
+    /// Processing Code ('00' goods/services, '01' cash, '09' purchase with
+    /// cashback).
+    pub fn from_transaction_type(transaction_type: u8) -> TransactionCategory {
+        match transaction_type {
+            0x01 => TransactionCategory::Cash,
+            0x00 | 0x09 => TransactionCategory::Purchase,
+            _ => TransactionCategory::Other,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ProcessingRestrictionsContext<'a> {
     pub icc_application_version_number: Option<&'a ApplicationVersionNumber>,

@@ -1,9 +1,15 @@
 //! Book 3 §10.5 p.102 - Cardholder Verification.
 
+use crate::contact::transaction::TransactionContext;
+use crate::core::apdu::{Command, sw};
+use crate::core::card_reader::CardReader;
+use crate::core::oda::{CaPublicKey, IccPublicKey, IssuerPublicKey};
+use crate::core::{get_challenge, oda, pin_encipherment, tags, verify};
 use crate::de::cardholder_verification_method_list::{
     CardholderVerificationMethod, CardholderVerificationMethodCondition,
     CardholderVerificationMethodList, CardholderVerificationMethodRule,
 };
+use crate::de::cardholder_verification_method_results::CardholderVerificationMethodResults;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct CvmTerminalSupport {
@@ -118,12 +124,12 @@ pub fn process_cvm_list<F>(
 where
     F: FnMut(&CardholderVerificationMethodRule) -> CvmExecutionResult,
 {
-    // §10.5 - empty/absent CVM List: no TSI bit, '3F 00 00'.
+    // §10.5 - empty/absent CVM List: no TSI bit, "No CVM performed".
     let list = match list {
         Some(l) if !l.rules.is_empty() => l,
         _ => {
             return CvmProcessingOutcome {
-                cvm_results: [0x3F, 0x00, 0x00],
+                cvm_results: CardholderVerificationMethodResults::NO_CVM_PERFORMED.to_bytes(),
                 tvr_updates: CvmTvrUpdates::default(),
                 tsi_cardholder_verification_was_performed: false,
             };
@@ -349,6 +355,180 @@ fn apply_unsupported_tvr_bits(
         }
         _ => {}
     }
+}
+
+/// Book 3 §6.3.5 — a VERIFY-related failure that is not a CVM outcome.
+#[derive(Debug)]
+pub enum OfflinePinError<E> {
+    Transport(E),
+    /// Status word outside the Book 3 Table 5 allocation for VERIFY;
+    /// the transaction shall be terminated.
+    UnallocatedStatusWord(u16),
+}
+
+/// Book 3 §10.5.1 + §6.5.12 — plaintext offline PIN against the ICC.
+pub fn verify_plaintext_offline_pin<C: CardReader>(
+    card: &mut C,
+    pin: &[u8],
+) -> Result<CvmExecutionResult, OfflinePinError<C::Error>> {
+    let Ok(command) = verify::command_plaintext_pin(pin) else {
+        return Ok(CvmExecutionResult::PinPadNotWorkingOrAbsent);
+    };
+    transmit_verify(card, &command)
+}
+
+/// Book 2 §7.2 + Book 3 §10.5.1 — enciphered offline PIN against the ICC.
+/// `fill_random` supplies the §7.2 step-3 padding (N−17 unpredictable bytes,
+/// ISO/IEC 18031); return false if no randomness is available.
+pub fn verify_enciphered_offline_pin<C: CardReader>(
+    card: &mut C,
+    pin: &[u8],
+    pin_encipherment_public_key: &IccPublicKey,
+    fill_random: impl FnOnce(&mut [u8]) -> bool,
+) -> Result<CvmExecutionResult, OfflinePinError<C::Error>> {
+    let Ok(pin_block) = verify::plaintext_pin_block(pin) else {
+        return Ok(CvmExecutionResult::PinPadNotWorkingOrAbsent);
+    };
+
+    // §7.2 step 2: GET CHALLENGE — anything other than 8 bytes with '9000'
+    // means the offline enciphered PIN CVM has failed.
+    let challenge = card
+        .transmit(&get_challenge::command())
+        .map_err(OfflinePinError::Transport)?;
+    if challenge.status_word() != sw::OK
+        || challenge.data().len() != get_challenge::CHALLENGE_LENGTH
+    {
+        return Ok(CvmExecutionResult::Failed);
+    }
+    let mut icc_unpredictable_number = [0u8; get_challenge::CHALLENGE_LENGTH];
+    icc_unpredictable_number.copy_from_slice(challenge.data());
+
+    // §7.2 step 3.
+    let Some(padding_length) =
+        pin_encipherment::random_padding_length(pin_encipherment_public_key.modulus.len())
+    else {
+        return Ok(CvmExecutionResult::Failed);
+    };
+    let mut padding = vec![0u8; padding_length];
+    if !fill_random(&mut padding) {
+        return Ok(CvmExecutionResult::PinPadNotWorkingOrAbsent);
+    }
+
+    // §7.2 step 4: RSA-encipher the Table 25 block.
+    let Ok(data) = pin_encipherment::enciphered_pin_data(
+        pin_block,
+        icc_unpredictable_number,
+        &padding,
+        &pin_encipherment_public_key.modulus,
+        &pin_encipherment_public_key.exponent,
+    ) else {
+        return Ok(CvmExecutionResult::Failed);
+    };
+    transmit_verify(
+        card,
+        &verify::command(verify::VerifyQualifier::EncipheredPinRsa, data, false),
+    )
+}
+
+/// Book 3 §6.5.12 + §10.5.1 — VERIFY status word → CVM execution result.
+fn transmit_verify<C: CardReader>(
+    card: &mut C,
+    command: &Command,
+) -> Result<CvmExecutionResult, OfflinePinError<C::Error>> {
+    let response = card
+        .transmit(command)
+        .map_err(OfflinePinError::Transport)?;
+    match response.status_word() {
+        sw::OK => Ok(CvmExecutionResult::Successful),
+        sw::AUTHENTICATION_METHOD_BLOCKED | sw::REFERENCED_DATA_INVALIDATED => {
+            Ok(CvmExecutionResult::PinTryLimitExceeded)
+        }
+        sw => match sw::counter_provided(sw) {
+            Some(0) => Ok(CvmExecutionResult::PinTryLimitExceeded),
+            Some(_) => Ok(CvmExecutionResult::Failed),
+            None => Err(OfflinePinError::UnallocatedStatusWord(sw)),
+        },
+    }
+}
+
+/// Book 2 §7.1 — ICC PIN Encipherment PK ('9F2D' chain) when all of its data
+/// objects were obtained, otherwise the ICC PK already recovered by offline
+/// data authentication. `None` means PIN encipherment has failed (rule 3).
+pub fn recover_pin_encipherment_public_key(
+    ctx: &TransactionContext<'_>,
+    capks: &[CaPublicKey],
+) -> Option<IccPublicKey> {
+    let certificate = ctx.tag_store.get(tags::ICC_PIN_ENCIPHERMENT_PK_CERTIFICATE);
+    let exponent = ctx.tag_store.get(tags::ICC_PIN_ENCIPHERMENT_PK_EXPONENT);
+    if let (Some(certificate), Some(exponent)) = (certificate, exponent) {
+        let certificate = certificate.to_vec();
+        let exponent = exponent.to_vec();
+        let remainder = ctx
+            .tag_store
+            .get(tags::ICC_PIN_ENCIPHERMENT_PK_REMAINDER)
+            .map(<[u8]>::to_vec);
+        let issuer_public_key = recover_issuer_public_key_for_pin(ctx, capks)?;
+        let pan = ctx.tag_store.get(tags::PAN)?.to_vec();
+        let today_mmyy = [
+            ctx.inputs.transaction_date[1],
+            ctx.inputs.transaction_date[0],
+        ];
+        return oda::recover_icc_pin_encipherment_public_key(
+            &issuer_public_key,
+            &certificate,
+            remainder.as_deref(),
+            &exponent,
+            &pan,
+            today_mmyy,
+        )
+        .ok();
+    }
+    ctx.cda.as_ref().map(|c| c.icc_public_key.clone())
+}
+
+fn recover_issuer_public_key_for_pin(
+    ctx: &TransactionContext<'_>,
+    capks: &[CaPublicKey],
+) -> Option<IssuerPublicKey> {
+    let ca_index_bytes = ctx.tag_store.get(tags::CA_PUBLIC_KEY_INDEX_ICC)?;
+    if ca_index_bytes.len() != 1 {
+        return None;
+    }
+    let ca_index = ca_index_bytes[0];
+    let issuer_certificate = ctx
+        .tag_store
+        .get(tags::ISSUER_PUBLIC_KEY_CERTIFICATE)?
+        .to_vec();
+    let issuer_exponent = ctx
+        .tag_store
+        .get(tags::ISSUER_PUBLIC_KEY_EXPONENT)?
+        .to_vec();
+    let issuer_remainder = ctx
+        .tag_store
+        .get(tags::ISSUER_PUBLIC_KEY_REMAINDER)
+        .map(<[u8]>::to_vec);
+    let pan = ctx.tag_store.get(tags::PAN)?.to_vec();
+    let today_mmyy = [
+        ctx.inputs.transaction_date[1],
+        ctx.inputs.transaction_date[0],
+    ];
+
+    let selected = ctx.selected.as_ref()?;
+    if selected.df_name.len() < 5 {
+        return None;
+    }
+    let rid: [u8; 5] = selected.df_name[..5].try_into().ok()?;
+    let capk = capks.iter().find(|k| k.rid == rid && k.index == ca_index)?;
+
+    oda::recover_issuer_public_key(
+        capk,
+        &issuer_certificate,
+        issuer_remainder.as_deref(),
+        &issuer_exponent,
+        &pan,
+        today_mmyy,
+    )
+    .ok()
 }
 
 #[cfg(test)]

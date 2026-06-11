@@ -103,6 +103,19 @@ pub fn first_generate_ac_decision(
     }
 }
 
+/// Book 4 §6.3.2.2.4 - TAA using only TAC-Denial / IAC-Denial after a first
+/// GENERATE AC XDA failure; `true` ⇒ decline.
+pub fn denial_decision(
+    tvr: &TerminalVerificationResults,
+    action_codes: &ActionCodes,
+) -> bool {
+    any_bit_in_tvr_matched(
+        &tvr.to_bytes(),
+        &action_codes.effective_iac_denial(),
+        &action_codes.effective_tac_denial(),
+    )
+}
+
 /// §10.7 "unable to process online" - re-runs Default.
 pub fn unable_to_go_online_decision(
     tvr: &TerminalVerificationResults,
@@ -197,6 +210,39 @@ mod tests {
             ),
             ApplicationCryptogramType::Aac
         );
+    }
+
+    #[test]
+    fn denial_decision_fires_on_tac_denial_match() {
+        let tvr = TerminalVerificationResults {
+            xda_signature_verification_failed: true,
+            ..Default::default()
+        };
+        let mut tac = [0u8; 5];
+        tac[3] = 0b0000_0001;
+        let action_codes = ActionCodes {
+            tac_denial: Some(tac),
+            ..Default::default()
+        };
+        assert!(denial_decision(&tvr, &action_codes));
+    }
+
+    #[test]
+    fn denial_decision_ignores_online_and_default_codes() {
+        let tvr = TerminalVerificationResults {
+            xda_signature_verification_failed: true,
+            ..Default::default()
+        };
+        let mut online_and_default = [0u8; 5];
+        online_and_default[3] = 0b0000_0001;
+        let action_codes = ActionCodes {
+            tac_online: Some(online_and_default),
+            tac_default: Some(online_and_default),
+            iac_online: Some(online_and_default),
+            iac_default: Some(online_and_default),
+            ..Default::default()
+        };
+        assert!(!denial_decision(&tvr, &action_codes));
     }
 
     #[test]

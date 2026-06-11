@@ -30,6 +30,10 @@ terminal_type = "14"
 #   Byte 3 (Security Capab.):  0xC8 = SDA + DDA + CDA.
 terminal_capabilities = "6050C8"
 
+# Book 1 §12.4 - the terminal supports both cardholder application selection
+# and cardholder confirmation, or neither (a single option).
+cardholder_selection_and_confirmation_supported = true
+
 # Tag '9F40', 5 bytes per B4 Annex A3.
 #   Byte 1 (Tx Type Cap):  0x99 = cash + inquiry + transfer + administrative.
 #                                (Goods/services/cashback/payment all 0 - ATM

@@ -106,7 +106,7 @@ impl CardholderVerificationMethod {
         }
     }
 
-    pub fn to_code(&self) -> u8 {
+    pub const fn to_code(&self) -> u8 {
         match self {
             Self::FailCvmProcessing => 0b000000,
             Self::PlaintextPinVerificationPerformedByIcc => 0b000001,
@@ -124,11 +124,11 @@ impl CardholderVerificationMethod {
             Self::IrisBiometricVerifiedOnline => 0b001101,
             Self::VoiceBiometricVerifiedOfflineByIcc => 0b001110,
             Self::VoiceBiometricVerifiedOnline => 0b001111,
-            Self::Rfu(c) => c & 0b0011_1111,
+            Self::Rfu(c) => *c & 0b0011_1111,
             Self::Signature => 0b011110,
             Self::NoCvmRequired => 0b011111,
-            Self::ReservedForIndividualPaymentSystems(c) => c & 0b0011_1111,
-            Self::ReservedForIssuer(c) => c & 0b0011_1111,
+            Self::ReservedForIndividualPaymentSystems(c) => *c & 0b0011_1111,
+            Self::ReservedForIssuer(c) => *c & 0b0011_1111,
             Self::NotAvailableForUse => 0b111111,
         }
     }
@@ -170,7 +170,7 @@ impl CardholderVerificationMethodCondition {
         }
     }
 
-    pub fn to_code(&self) -> u8 {
+    pub const fn to_code(&self) -> u8 {
         match self {
             Self::Always => 0x00,
             Self::IfUnattendedCash => 0x01,

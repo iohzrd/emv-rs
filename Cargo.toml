@@ -1,15 +1,28 @@
-[workspace]
-resolver = "2"
-members = ["emv"]
-
-[workspace.package]
+[package]
+name = "emv"
+description = "Pure-Rust EMV 4.4 kernel"
 version = "0.1.0"
 edition = "2024"
 authors = ["iohzrd <iohzrd@gmail.com>"]
 license = "MIT"
 rust-version = "1.95"
+repository = "https://github.com/iohzrd/emv-rs"
+readme = "README.md"
+keywords = ["emv", "payments", "smartcard", "iso7816", "apdu"]
+categories = ["finance", "hardware-support"]
 
-[workspace.dependencies]
+[features]
+default = ["pcsc"]
+pcsc = ["dep:pcsc", "dep:rpassword"]
+kernel-2 = []
+kernel-3 = []
+kernel-4 = []
+kernel-5 = []
+kernel-6 = []
+kernel-7 = []
+kernel-8 = []
+
+[dependencies]
 # Cryptographic primitives (Book 2 / Book 2 Annex B)
 aes = "0.9"
 des = "0.9"
@@ -20,7 +33,12 @@ sha1 = "0.11"
 sha2 = "0.11"
 
 # Transport / IO / serde
-pcsc = "2.9"
-rpassword = "7"
+pcsc = { version = "2.9", optional = true }
+rpassword = { version = "7.5.4", optional = true }
 serde = { version = "1", features = ["derive"] }
-toml = "0.9.8"
+toml = "1"
+
+[[bin]]
+name = "emv-test-transaction"
+path = "src/bin/test_transaction.rs"
+required-features = ["pcsc"]

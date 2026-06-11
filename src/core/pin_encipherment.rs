@@ -3,6 +3,12 @@
 use crate::core::error::{Error, Result};
 use crate::core::iso9796_2;
 
+/// §7.2 step 3 - N − 17 bytes, where 17 covers the Table 25 '7F' header,
+/// PIN block and ICC Unpredictable Number.
+pub fn random_padding_length(modulus_length: usize) -> Option<usize> {
+    modulus_length.checked_sub(17)
+}
+
 pub fn enciphered_pin_data(
     pin_block: [u8; 8],
     icc_unpredictable_number: [u8; 8],
@@ -11,10 +17,9 @@ pub fn enciphered_pin_data(
     exponent: &[u8],
 ) -> Result<Vec<u8>> {
     let n = modulus.len();
-    if n < 17 {
+    let Some(expected_padding) = random_padding_length(n) else {
         return Err(Error::InvalidValue);
-    }
-    let expected_padding = n - 17;
+    };
     if random_padding.len() != expected_padding {
         return Err(Error::WrongLength {
             expected: expected_padding,

@@ -2,18 +2,12 @@
 
 A pure-Rust [EMV 4.4](https://www.emvco.com/specifications/) kernel.
 
-## Workspace layout
-
-| Crate | Role                                                                                                                |
-| ----- | ------------------------------------------------------------------------------------------------------------------- |
-| `emv` | The kernel: primitives + contact transaction state machine + TOML config + PC/SC transport + `emv-test-transaction` |
-
 ## Running a transaction
 
 `emv-test-transaction` walks a real ICC through every Book 3 §10 phase against
-an attached PC/SC reader. It auto-discovers the four config files shipped under
-[`emv/`](emv/) ([`terminal.toml`](emv/terminal.toml), [`aids.toml`](emv/aids.toml),
-[`capk.toml`](emv/capk.toml), [`crl.toml`](emv/crl.toml)) unless overridden.
+an attached PC/SC reader. It auto-discovers the four config files shipped in
+the repository root ([`terminal.toml`](terminal.toml), [`aids.toml`](aids.toml),
+[`capk.toml`](capk.toml), [`crl.toml`](crl.toml)) unless overridden.
 
 ```sh
 cargo run --bin emv-test-transaction
@@ -39,7 +33,7 @@ approved, `"05"` ⇒ declined, `"Z1"` ⇒ terminal-set offline-decline, etc).
 
 ## Contactless kernels
 
-The contactless surface is per-kernel feature-gated so consumers pull only what
+The contactless surface is (will be) per-kernel feature-gated so consumers pull only what
 they need. Books A and B (cross-cutting types + Entry Point) are always on once
 the `contactless` module is touched; individual kernels are opt-in:
 
@@ -60,15 +54,29 @@ host platform).
 ## Building
 
 ```sh
-cargo build                                                            # default features (incl. pcsc)
-cargo build --no-default-features -p emv                               # library-only, no PC/SC system dep
-cargo test  --workspace                                                # 1311 tests (contact only)
-cargo test  -p emv --features kernel-3,kernel-4,kernel-5,kernel-6,kernel-7 --lib  # 1903 tests (contact + contactless kernels 3–7)
+cargo build                                # default features (incl. pcsc)
+cargo build --no-default-features          # library-only, no PC/SC system dep
+cargo test  --no-default-features          # the contact kernel test suite
 ```
 
 The `pcsc` feature pulls in `libpcsclite`; turn it off when building on a host
 without the system library or for CI smoke-checks of the kernel itself.
 
+## Status & conformance
+
+emv-rs is **not an EMVCo type-approved kernel**. Production payment acceptance
+requires EMV Level 2 type approval under the payment networks' rules; emv-rs is
+intended for development, research, testing, and tooling.
+
+Division of responsibility at the online boundary: issuer Authorisation
+Response Code semantics are acquirer-domain (Book 4 Annex A6 defines only the
+disposition categories), so the host classifies the issuer response and passes
+an `OnlineAuthorisationOutcome` to `submit_authorisation_response`; the kernel
+stores the ARC verbatim and never interprets it.
+
 ## License
 
 [MIT](LICENSE).
+
+EMV® is a registered trademark of [EMVCo, LLC](https://www.emvco.com/). This
+project is not affiliated with or endorsed by EMVCo.

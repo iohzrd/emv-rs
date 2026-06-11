@@ -1,6 +1,9 @@
 //! CVM Results (tag 9F34) - Book 4 Annex A4, Table 33.
 
 use crate::core::error::{Error, Result};
+use crate::de::cardholder_verification_method_list::{
+    CardholderVerificationMethod, CardholderVerificationMethodCondition,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CardholderVerificationMethodResults(pub [u8; 3]);
@@ -26,7 +29,7 @@ impl CardholderVerificationMethodResultCode {
         }
     }
 
-    pub fn to_u8(self) -> u8 {
+    pub const fn to_u8(self) -> u8 {
         match self {
             CardholderVerificationMethodResultCode::Unknown => 0x00,
             CardholderVerificationMethodResultCode::Failed => 0x01,
@@ -37,6 +40,14 @@ impl CardholderVerificationMethodResultCode {
 }
 
 impl CardholderVerificationMethodResults {
+    /// "No CVM performed".
+    pub const NO_CVM_PERFORMED: CardholderVerificationMethodResults =
+        CardholderVerificationMethodResults([
+            CardholderVerificationMethod::NotAvailableForUse.to_code(),
+            CardholderVerificationMethodCondition::Always.to_code(),
+            CardholderVerificationMethodResultCode::Unknown.to_u8(),
+        ]);
+
     pub fn parse(data: &[u8]) -> Result<Self> {
         if data.len() != 3 {
             return Err(Error::WrongLength {
@@ -67,6 +78,14 @@ impl CardholderVerificationMethodResults {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn no_cvm_performed_wire_value() {
+        assert_eq!(
+            CardholderVerificationMethodResults::NO_CVM_PERFORMED.to_bytes(),
+            [0x3F, 0x00, 0x00]
+        );
+    }
 
     #[test]
     fn roundtrip() {

@@ -1,5 +1,6 @@
 //! Book 2 §12 - ECC Offline Data Authentication (XDA).
 
+use crate::core::compressed_numeric;
 use crate::core::ec_sdsa::{ec_sdsa_p256_verify, ec_sdsa_p521_verify};
 use crate::core::ecc_primitives::{
     P256_FIELD_BYTES, P521_FIELD_BYTES, algorithm_suite, hash_algorithm, hash_for_ecc,
@@ -401,8 +402,14 @@ pub fn verify_xda(icc_pk: &EccIccPublicKey, sdad: &[u8], transaction_data: &[u8]
 /// Check whether the 5-byte F-padded Issuer Identifier matches the
 /// leftmost 3-10 digits of the BCD-encoded PAN.
 fn issuer_identifier_matches_pan_ecc(issuer_id: &[u8; 5], pan: &[u8]) -> bool {
-    let id_digits = decode_bcd_skip_f(issuer_id);
-    let pan_digits = decode_bcd_skip_f(pan);
+    let id_digits = match compressed_numeric::decode(issuer_id) {
+        Ok(d) => d,
+        Err(_) => return false,
+    };
+    let pan_digits = match compressed_numeric::decode(pan) {
+        Ok(d) => d,
+        Err(_) => return false,
+    };
     if !(3..=10).contains(&id_digits.len()) {
         return false;
     }
@@ -410,27 +417,6 @@ fn issuer_identifier_matches_pan_ecc(issuer_id: &[u8; 5], pan: &[u8]) -> bool {
         return false;
     }
     pan_digits.starts_with(&id_digits)
-}
-
-/// Decode BCD digits, stopping at any `'F'` nibble (treated as
-/// padding). Non-decimal non-F nibbles produce a digit > 9 in the
-/// output but we don't error here - the caller is comparing for
-/// equality, which a malformed nibble naturally fails.
-fn decode_bcd_skip_f(bytes: &[u8]) -> Vec<u8> {
-    let mut out = Vec::new();
-    for &b in bytes {
-        let hi = b >> 4;
-        let lo = b & 0x0F;
-        if hi == 0xF {
-            return out;
-        }
-        out.push(hi);
-        if lo == 0xF {
-            return out;
-        }
-        out.push(lo);
-    }
-    out
 }
 
 /// Lexicographic YYYYMMDD (BCD) comparison: cert is non-expired iff

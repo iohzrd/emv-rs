@@ -457,8 +457,8 @@ impl<'t, C: CardReader, A: OnlineAuthorisation> Transaction<'t, C, A> {
             };
 
         let today_mmyy = [
-            self.ctx.inputs.transaction_date[0],
             self.ctx.inputs.transaction_date[1],
+            self.ctx.inputs.transaction_date[0],
         ];
 
         // Book 2 §5.3.
@@ -573,8 +573,8 @@ impl<'t, C: CardReader, A: OnlineAuthorisation> Transaction<'t, C, A> {
             };
 
         let today_mmyy = [
-            self.ctx.inputs.transaction_date[0],
             self.ctx.inputs.transaction_date[1],
+            self.ctx.inputs.transaction_date[0],
         ];
 
         let issuer_pk = match oda::recover_issuer_public_key(
@@ -723,8 +723,8 @@ impl<'t, C: CardReader, A: OnlineAuthorisation> Transaction<'t, C, A> {
             };
 
         let today_mmyy = [
-            self.ctx.inputs.transaction_date[0],
             self.ctx.inputs.transaction_date[1],
+            self.ctx.inputs.transaction_date[0],
         ];
 
         let issuer_pk = match oda::recover_issuer_public_key(
@@ -1467,6 +1467,7 @@ mod tests {
             merchant_identifier: [b'M'; 15],
             merchant_name_and_location: b"Acme".to_vec(),
             acquirer_identifier: None,
+            cardholder_selection_and_confirmation_supported: true,
             applications: vec![TerminalApplication {
                 aid: vec![0xA0, 0, 0, 0, 0x03, 0x10, 0x10],
                 partial_match_allowed: false,

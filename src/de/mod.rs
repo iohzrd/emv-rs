@@ -3,6 +3,7 @@
 pub mod additional_terminal_capabilities;
 pub mod application_file_locator;
 pub mod application_interchange_profile;
+pub mod application_primary_account_number;
 pub mod application_priority_indicator;
 pub mod application_selection_indicator;
 pub mod application_usage_control;
