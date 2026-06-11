@@ -1,0 +1,20 @@
+# Certification Revocation List - EMV 4.4 Book 2 §5.1.2.
+#
+# Each entry identifies one revoked Issuer PK Certificate by the
+# (RID, CA PK Index, Cert Serial) triple that Book 2 §5.3 step 10
+# matches against. SDA, DDA, and CDA all fail offline data
+# authentication when the recovered Issuer PK certificate is on this
+# list.
+#
+# Real terminals receive CRL updates over the same Type Approval /
+# key-download channel that ships CAPKs (binary blob, vendor-defined
+# format per §5.1.2). This TOML form is a development/test
+# convenience. Production CRLs are typically empty - revocation is
+# rare - so the empty default below is realistic.
+#
+# To revoke a certificate, add an entry like:
+#
+# [[entries]]
+# rid = "A000000003"   # 5 bytes hex (Visa RID in this example)
+# ca_pk_index = "92"   # 1 byte hex (matches '8F' on the card)
+# cert_serial = "9E11FA"  # 3 bytes hex (from IssuerPublicKey::serial_number)

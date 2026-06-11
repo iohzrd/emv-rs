@@ -1,0 +1,4 @@
+*.so
+/references
+/target
+__pycache__

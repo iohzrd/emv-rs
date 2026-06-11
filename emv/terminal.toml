@@ -1,0 +1,42 @@
+# Book 4 §10.1 - application-independent terminal data.
+#
+# Per §10.1 these values shall be initialised in and obtainable from the
+# terminal prior to GET PROCESSING OPTIONS, and shall not change during
+# a transaction.
+#
+# This configuration models a typical ATM (Unattended Financial Institution
+# with online capability). For a POS/merchant configuration set
+# `terminal_type = "22"` and adjust the capability bytes accordingly.
+
+# §10.1.1 Terminal Related Data - unique to the terminal.
+# Tag '9F1E', 8 bytes ANS - IFD Serial Number (unique per IFD).
+ifd_serial_number = "EMVRSDEM"
+# Tag '9F1A', n3 - ISO 3166 numeric country code (840 = USA).
+terminal_country_code = 840
+
+# §10.1.2 Transaction Related Data - application-independent capabilities.
+# Tag '9F35', 1 byte BCD per B4 Annex A1.
+#   0x14 = Unattended, online-only, financial institution → ATM (online-only).
+#   0x15 = Unattended, offline-with-online-capability, FI → ATM (with offline).
+terminal_type = "14"
+
+# Tag '9F33', 3 bytes per B4 Annex A2.
+#   Byte 1 (Card Data Input):  0x60 = magnetic stripe + IC with contacts.
+#   Byte 2 (CVM Capability):   0x50 = enciphered PIN verified online (b7)
+#                                   + enciphered PIN verified offline (b5).
+#                                    Plaintext offline PIN, signature, and
+#                                    No-CVM-Required all left clear -
+#                                    realistic ATM CVM support.
+#   Byte 3 (Security Capab.):  0xC8 = SDA + DDA + CDA.
+terminal_capabilities = "6050C8"
+
+# Tag '9F40', 5 bytes per B4 Annex A3.
+#   Byte 1 (Tx Type Cap):  0x99 = cash + inquiry + transfer + administrative.
+#                                (Goods/services/cashback/payment all 0 - ATM
+#                                 does not sell goods.)
+#   Byte 2 (Tx Type Cap):  0x80 = cash deposit supported.
+#   Byte 3 (Data Input):   0xB0 = numeric + command + function keys.
+#   Byte 4 (Data Output):  0x70 = print to cardholder + display attendant
+#                                + display cardholder.
+#   Byte 5 (Data Output):  0x01 = ISO/IEC 8859-1 (Latin Alphabet 1).
+additional_terminal_capabilities = "9980B07001"

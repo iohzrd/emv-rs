@@ -1,0 +1,145 @@
+# Book 4 §10.2 - application-dependent terminal data.
+#
+# Per spec every Table 7 field is per-AID. The `[defaults]` block holds
+# values shared across all AIDs at this terminal; each `[[aids]]` row
+# may override any default. AIDs taken from a real production deployment
+
+[defaults]
+# ── Terminal-wide §10.2 values applied to the kernel `Terminal`. ──
+# Tag '9F15', n4 - Merchant Category Code (5999 = Misc/Other).
+merchant_category_code = 5999
+# Tag '9F16', 15 bytes ANS.
+merchant_identifier = "EMV_RS_DEMO0001"
+# Tag '9F4E' - up to 85 bytes ANS.
+merchant_name_and_location = "emv-rs PC/SC test tool"
+# Tag '9F1C', 8 bytes ANS.
+terminal_identification = "EMVRSDEM"
+
+# Tag '5F2A', n3 - Transaction Currency Code (840 = USD).
+transaction_currency_code = 840
+# Tag '5F36', n1.
+transaction_currency_exponent = 2
+
+# ── Per-AID §10.2 values that happen to be the same for every AID
+#    in this deployment. Individual rows may override. ──
+partial_match_allowed = true
+default_ddol = "9F3704"
+
+# Tag '9F1B', n12 - Terminal Floor Limit in transaction-currency minor
+# units. With currency = USD and exponent = 2, this is $100.00.
+terminal_floor_limit = 10000
+
+# §10.6.2 Random Transaction Selection - sample values for the demo.
+# Real terminals get these from the payment-system Type Approval bundle;
+# values here pick ~5% of low-value transactions and ramp to ~20% near
+# the floor limit for biased-random coverage.
+rts_target_percentage = 5
+rts_max_target_percentage = 20
+rts_threshold_value = 50
+
+# AID list
+
+[[aids]]
+aid = "A0000006200620"  # COMMON U.S DEBIT AID - Debit Network Alliance (DNA)
+application_version_number = "0096"
+tac_denial  = "0010000000"
+tac_online  = "DC4004F800"
+tac_default = "DC4000A800"
+
+[[aids]]
+aid = "A0000001524010"  # COMMON U.S DEBIT AID - Discover
+application_version_number = "0001"
+tac_denial  = "0010000000"
+tac_online  = "FCE09CF800"
+tac_default = "DC00002000"
+
+[[aids]]
+aid = "A0000000980840"  # COMMON U.S DEBIT AID - Visa
+application_version_number = "0096"
+tac_denial  = "0000000000"
+tac_online  = "FFFFFFFFFF"
+tac_default = "FFFFFFFFFF"
+
+[[aids]]
+aid = "A0000000042203"  # COMMON U.S DEBIT AID - Mastercard Maestro
+application_version_number = "0002"
+tac_denial  = "0000000000"
+tac_online  = "FE50BCF800"
+tac_default = "FE50BC2000"
+
+[[aids]]
+aid = "A00000002501"  # American Express
+application_version_number = "0096"
+tac_denial  = "0000000000"
+tac_online  = "9040048000"
+tac_default = "9040048000"
+
+[[aids]]
+aid = "A0000000651010"  # JCB
+application_version_number = "FFFF"
+tac_denial  = "0000000000"
+tac_online  = "FFFFFFFFFF"
+tac_default = "FFFFFFFFFF"
+
+[[aids]]
+aid = "A0000001523010"  # Discover
+application_version_number = "0001"
+tac_denial  = "0010000000"
+tac_online  = "FCE09CF800"
+tac_default = "DC00002000"
+
+[[aids]]
+aid = "A0000000038010"  # Visa Plus
+application_version_number = "0096"
+tac_denial  = "0010000000"
+tac_online  = "D84004F800"
+tac_default = "D84000A800"
+
+[[aids]]
+aid = "A0000000032010"  # Visa Electron
+application_version_number = "0096"
+tac_denial  = "0010000000"
+tac_online  = "584004F800"
+tac_default = "584004F800"
+
+[[aids]]
+aid = "A0000000031010"  # Visa Credit/Debit
+application_version_number = "0096"
+tac_denial  = "0010000000"
+tac_online  = "584004F800"
+tac_default = "584004F800"
+
+[[aids]]
+aid = "A0000000046000"  # Cirrus
+application_version_number = "0002"
+tac_denial  = "0000000000"
+tac_online  = "B078048000"
+tac_default = "B078048000"
+
+[[aids]]
+aid = "A0000000043060"  # Maestro (Debit)
+application_version_number = "0002"
+tac_denial  = "0000000000"
+tac_online  = "FE50BCF800"
+tac_default = "FE50BC2000"
+
+[[aids]]
+aid = "A0000000041010"  # Mastercard Credit/Debit
+application_version_number = "0002"
+tac_denial  = "0000000000"
+tac_online  = "FE50BCF800"
+tac_default = "FE50BC2000"
+
+[[aids]]
+aid = "A0000000033010"  # Visa Interlink
+application_version_number = "0096"
+tac_denial  = "0010000000"
+tac_online  = "584004F800"
+tac_default = "584004F800"
+
+[[aids]]
+aid = "A0000002771010"  # Interac
+application_version_number = "0096"
+tac_denial  = "0500000000"
+tac_online  = "05FFFFFFFF"
+tac_default = "05FFFFFFFF"
