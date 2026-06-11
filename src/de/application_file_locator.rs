@@ -68,7 +68,7 @@ impl ApplicationFileLocator {
         if data.is_empty() {
             return Err(Error::InvalidValue);
         }
-        if data.len() % 4 != 0 {
+        if !data.len().is_multiple_of(4) {
             return Err(Error::InvalidValue);
         }
         let mut entries = Vec::with_capacity(data.len() / 4);

@@ -18,7 +18,7 @@ impl Cla {
     }
 
     pub fn command_chaining(self) -> Option<bool> {
-        self.is_interindustry().then(|| self.0 & 0x10 != 0)
+        self.is_interindustry().then_some(self.0 & 0x10 != 0)
     }
 
     pub fn logical_channel(self) -> u8 {

@@ -76,7 +76,13 @@ stores the ARC verbatim and never interprets it.
 
 ## License
 
-[MIT](LICENSE).
+Licensed under either of [MIT](LICENSE-MIT) or
+[Apache-2.0](LICENSE-APACHE), at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally
+submitted for inclusion in this work by you, as defined in the Apache-2.0
+license, shall be dual licensed as above, without any additional terms or
+conditions.
 
 EMV® is a registered trademark of [EMVCo, LLC](https://www.emvco.com/). This
 project is not affiliated with or endorsed by EMVCo.

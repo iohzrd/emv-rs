@@ -32,7 +32,7 @@ impl AuthorisationResponseCode {
             return Err(Error::InvalidValue);
         }
         // SAFETY: both bytes are ASCII (checked above), so the slice is valid UTF-8.
-        Ok(std::str::from_utf8(&self.0).map_err(|_| Error::InvalidValue)?)
+        std::str::from_utf8(&self.0).map_err(|_| Error::InvalidValue)
     }
 }
 
@@ -91,7 +91,7 @@ mod tests {
             })
         );
         assert_eq!(
-            AuthorisationResponseCode::parse(&[b'Y']),
+            AuthorisationResponseCode::parse(b"Y"),
             Err(Error::WrongLength {
                 expected: 2,
                 got: 1

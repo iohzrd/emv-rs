@@ -201,7 +201,7 @@ impl CardholderVerificationMethodList {
             return Err(Error::UnexpectedEof);
         }
         let rules_bytes = data.len() - 8;
-        if rules_bytes % 2 != 0 {
+        if !rules_bytes.is_multiple_of(2) {
             return Err(Error::InvalidValue);
         }
         let amount_x = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);

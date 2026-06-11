@@ -28,6 +28,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::clone_on_copy)]
     fn copy_clone_round_trip() {
         let a = ApplicationSelectionIndicator::PartialMatchAllowed;
         let b = a; // Copy

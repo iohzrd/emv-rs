@@ -138,8 +138,8 @@ pub struct EccIccPublicKey {
 ///   [10] Issuer PK Cert Sig      N_SIG bytes (per CA's suite)
 /// ```
 ///
-/// The signature in field [10] is EC-SDSA over the concatenation of
-/// fields [1..9] using the CA's algorithm suite (in `ca_pk`).
+/// The signature in field \[10\] is EC-SDSA over the concatenation of
+/// fields \[1..9\] using the CA's algorithm suite (in `ca_pk`).
 pub fn recover_issuer_public_key_ecc(
     ca_pk: &EccCaPublicKey,
     issuer_pk_cert: &[u8],

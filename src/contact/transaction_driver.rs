@@ -198,6 +198,7 @@ impl<'t, C: CardReader, A: OnlineAuthorisation> Transaction<'t, C, A> {
     }
 
     /// Book 1 §12.3.2 PSE method.
+    #[allow(clippy::type_complexity)]
     pub fn build_candidate_list_pse(
         &mut self,
     ) -> Result<Option<Vec<Candidate>>, DriverError<C::Error, A::Error>> {
@@ -886,6 +887,7 @@ impl<'t, C: CardReader, A: OnlineAuthorisation> Transaction<'t, C, A> {
     }
 
     /// Book 3 §6.5.7 - GET DATA. Non-'9000' returns `Ok(None)` per §10.6.3.
+    #[allow(clippy::type_complexity)]
     pub fn get_data(
         &mut self,
         tag: Tag,
@@ -2178,7 +2180,7 @@ mod tests {
         assert_eq!(fci.application_label.as_deref(), Some(&b"VISA"[..]));
 
         let gpo = tx.initiate(&[]).unwrap();
-        assert!(gpo.aip.cardholder_verification_is_supported || true);
+        assert!(gpo.aip.cardholder_verification_is_supported);
 
         let read_outcome = tx.read_application_data().unwrap();
         assert!(read_outcome.oda_input.is_empty());

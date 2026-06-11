@@ -70,7 +70,7 @@ pub struct IssuerScriptResults(pub Vec<IssuerScriptResult>);
 
 impl IssuerScriptResults {
     pub fn parse(data: &[u8]) -> Result<Self> {
-        if data.len() % 5 != 0 {
+        if !data.len().is_multiple_of(5) {
             // Round up so the caller sees the nearest valid length > got.
             let expected = data.len().div_ceil(5) * 5;
             return Err(Error::WrongLength {

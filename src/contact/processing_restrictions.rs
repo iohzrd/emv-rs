@@ -101,10 +101,13 @@ pub fn check_application_usage_control(
             }
         }
         TransactionCategory::Purchase => {
-            // Table 36 - goods AND/OR services suffices.
+            // Table 36 - goods AND/OR services suffices. Written to
+            // mirror the domestic arm above, not minimally.
+            #[allow(clippy::nonminimal_bool)]
             if domestic && !(auc.valid_for_domestic_goods || auc.valid_for_domestic_services) {
                 return true;
             }
+            #[allow(clippy::nonminimal_bool)]
             if !domestic
                 && !(auc.valid_for_international_goods || auc.valid_for_international_services)
             {

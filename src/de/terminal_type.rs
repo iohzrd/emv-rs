@@ -62,8 +62,8 @@ impl TerminalType {
 
     pub fn environment(&self) -> Environment {
         match self.ones() {
-            1 | 2 | 3 => Environment::Attended,
-            4 | 5 | 6 => Environment::Unattended,
+            1..=3 => Environment::Attended,
+            4..=6 => Environment::Unattended,
             other => Environment::Rfu(other),
         }
     }
@@ -80,7 +80,7 @@ impl TerminalType {
     /// Book 4 Annex A1 p. 109 - ATM precondition (combine with Additional Terminal
     /// Capabilities byte 1 'cash' bit to classify as ATM).
     pub fn is_unattended_financial_institution(&self) -> bool {
-        matches!(self.0, 0x14 | 0x15 | 0x16)
+        matches!(self.0, 0x14..=0x16)
     }
 }
 

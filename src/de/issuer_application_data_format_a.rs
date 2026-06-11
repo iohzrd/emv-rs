@@ -72,13 +72,11 @@ mod tests {
         b[5] = 0x00;
         b[6] = 0x00;
         b[7] = 0x00;
-        for i in 8..16 {
-            b[i] = (i as u8) - 8;
+        for (i, byte) in b[8..16].iter_mut().enumerate() {
+            *byte = i as u8;
         }
         b[16] = 0x0F;
-        for i in 17..32 {
-            b[i] = 0xAA;
-        }
+        b[17..32].fill(0xAA);
         b
     }
 

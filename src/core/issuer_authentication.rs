@@ -112,7 +112,7 @@ pub fn arpc_method2_aes(arqc: [u8; 8], csu: [u8; 4], pcad: &[u8], sk_ac: &[u8]) 
 /// The result has length `8 + pcad.len()` bytes (8 to 16). It is
 /// the value field of tag `'91'` and the data field for EXTERNAL
 /// AUTHENTICATE per Book 3 §6.5.4 (built via
-/// [`crate::online_processing::external_authenticate`]).
+/// [`crate::contact::online_processing::external_authenticate`]).
 ///
 /// Errors:
 ///

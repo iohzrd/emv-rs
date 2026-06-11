@@ -192,8 +192,8 @@ pub fn validate_pk_x_p256(x: &[u8; P256_FIELD_BYTES]) -> Result<()> {
 
 /// Field byte length for P-521 (`N_FIELD = 66`).
 ///
-/// 521-bit field elements fit into 66 bytes when encoded big-endian
-/// - the high 7 bits of the leading byte are always zero per the
+/// 521-bit field elements fit into 66 bytes when encoded big-endian -
+/// the high 7 bits of the leading byte are always zero per the
 /// curve definition (Table 46).
 pub const P521_FIELD_BYTES: usize = 66;
 
@@ -205,8 +205,8 @@ fn p521_p() -> BigUint {
 }
 
 /// Recover the P-521 y-coordinate from an x-coordinate per
-/// §B2.2.1(e) `Point4x()`, returning the **lower** of the two roots
-/// - i.e. the `y` satisfying `y < (p+1)/2`. Matches the §B2.2.4
+/// §B2.2.1(e) `Point4x()`, returning the **lower** of the two roots -
+/// i.e. the `y` satisfying `y < (p+1)/2`. Matches the §B2.2.4
 /// long-term-key constraint.
 ///
 /// Errors as for [`recover_y_p256`] (`x ≥ p`, no point on the curve,
