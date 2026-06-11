@@ -102,14 +102,11 @@ pub fn check_application_usage_control(
         }
         TransactionCategory::Purchase => {
             // Table 36 - goods AND/OR services suffices.
-            if domestic
-                && !(auc.valid_for_domestic_goods || auc.valid_for_domestic_services)
-            {
+            if domestic && !(auc.valid_for_domestic_goods || auc.valid_for_domestic_services) {
                 return true;
             }
             if !domestic
-                && !(auc.valid_for_international_goods
-                    || auc.valid_for_international_services)
+                && !(auc.valid_for_international_goods || auc.valid_for_international_services)
             {
                 return true;
             }

@@ -38,7 +38,9 @@ impl BiometricInformationTemplate {
     }
 
     pub fn biometric_header_templates(&self) -> impl Iterator<Item = &Tlv> {
-        self.0.iter().filter(|t| t.tag() == BIOMETRIC_HEADER_TEMPLATE)
+        self.0
+            .iter()
+            .filter(|t| t.tag() == BIOMETRIC_HEADER_TEMPLATE)
     }
 
     pub fn to_tlv(&self) -> Tlv {
@@ -125,7 +127,10 @@ mod tests {
         assert_eq!(n, wire.len());
         let bg = BiometricInformationTemplateGroup::parse(&parsed_tlv).unwrap();
         assert_eq!(bg.bits().count(), 1);
-        assert_eq!(bg.bits().next().unwrap().tag(), BIOMETRIC_INFORMATION_TEMPLATE);
+        assert_eq!(
+            bg.bits().next().unwrap().tag(),
+            BIOMETRIC_INFORMATION_TEMPLATE
+        );
 
         let re = bg.to_tlv();
         assert_eq!(re.tag(), BIT_GROUP_TEMPLATE);
@@ -139,10 +144,7 @@ mod tests {
         let bg = BiometricInformationTemplateGroup::parse(&group).unwrap();
         assert_eq!(bg.children().len(), 2);
         assert_eq!(bg.children()[0].tag(), Tag(0x02));
-        assert_eq!(
-            bg.children()[0].value().as_primitive().unwrap(),
-            &[0x01]
-        );
+        assert_eq!(bg.children()[0].value().as_primitive().unwrap(), &[0x01]);
         assert_eq!(bg.bits().count(), 1);
     }
 

@@ -272,7 +272,10 @@ mod tests {
 
     #[test]
     fn method_specific_decodings() {
-        assert_eq!(CardholderVerificationMethod::from_code(0b000000), CardholderVerificationMethod::FailCvmProcessing);
+        assert_eq!(
+            CardholderVerificationMethod::from_code(0b000000),
+            CardholderVerificationMethod::FailCvmProcessing
+        );
         assert_eq!(
             CardholderVerificationMethod::from_code(0b000001),
             CardholderVerificationMethod::PlaintextPinVerificationPerformedByIcc
@@ -333,8 +336,14 @@ mod tests {
             CardholderVerificationMethod::from_code(0b001111),
             CardholderVerificationMethod::VoiceBiometricVerifiedOnline
         );
-        assert_eq!(CardholderVerificationMethod::from_code(0b011110), CardholderVerificationMethod::Signature);
-        assert_eq!(CardholderVerificationMethod::from_code(0b011111), CardholderVerificationMethod::NoCvmRequired);
+        assert_eq!(
+            CardholderVerificationMethod::from_code(0b011110),
+            CardholderVerificationMethod::Signature
+        );
+        assert_eq!(
+            CardholderVerificationMethod::from_code(0b011111),
+            CardholderVerificationMethod::NoCvmRequired
+        );
         assert_eq!(
             CardholderVerificationMethod::from_code(0b111111),
             CardholderVerificationMethod::NotAvailableForUse
@@ -343,8 +352,14 @@ mod tests {
 
     #[test]
     fn method_reserved_ranges() {
-        assert_eq!(CardholderVerificationMethod::from_code(0b010000), CardholderVerificationMethod::Rfu(0b010000));
-        assert_eq!(CardholderVerificationMethod::from_code(0b011101), CardholderVerificationMethod::Rfu(0b011101));
+        assert_eq!(
+            CardholderVerificationMethod::from_code(0b010000),
+            CardholderVerificationMethod::Rfu(0b010000)
+        );
+        assert_eq!(
+            CardholderVerificationMethod::from_code(0b011101),
+            CardholderVerificationMethod::Rfu(0b011101)
+        );
         assert_eq!(
             CardholderVerificationMethod::from_code(0b100000),
             CardholderVerificationMethod::ReservedForIndividualPaymentSystems(0b100000)
@@ -373,7 +388,10 @@ mod tests {
 
     #[test]
     fn condition_specific_decodings() {
-        assert_eq!(CardholderVerificationMethodCondition::from_code(0x00), CardholderVerificationMethodCondition::Always);
+        assert_eq!(
+            CardholderVerificationMethodCondition::from_code(0x00),
+            CardholderVerificationMethodCondition::Always
+        );
         assert_eq!(
             CardholderVerificationMethodCondition::from_code(0x01),
             CardholderVerificationMethodCondition::IfUnattendedCash
@@ -386,7 +404,10 @@ mod tests {
             CardholderVerificationMethodCondition::from_code(0x03),
             CardholderVerificationMethodCondition::IfTerminalSupportsTheCvm
         );
-        assert_eq!(CardholderVerificationMethodCondition::from_code(0x04), CardholderVerificationMethodCondition::IfManualCash);
+        assert_eq!(
+            CardholderVerificationMethodCondition::from_code(0x04),
+            CardholderVerificationMethodCondition::IfManualCash
+        );
         assert_eq!(
             CardholderVerificationMethodCondition::from_code(0x05),
             CardholderVerificationMethodCondition::IfPurchaseWithCashback
@@ -407,8 +428,14 @@ mod tests {
             CardholderVerificationMethodCondition::from_code(0x09),
             CardholderVerificationMethodCondition::IfTransactionIsInTheApplicationCurrencyAndIsOverYValue
         );
-        assert_eq!(CardholderVerificationMethodCondition::from_code(0x0A), CardholderVerificationMethodCondition::Rfu(0x0A));
-        assert_eq!(CardholderVerificationMethodCondition::from_code(0x7F), CardholderVerificationMethodCondition::Rfu(0x7F));
+        assert_eq!(
+            CardholderVerificationMethodCondition::from_code(0x0A),
+            CardholderVerificationMethodCondition::Rfu(0x0A)
+        );
+        assert_eq!(
+            CardholderVerificationMethodCondition::from_code(0x7F),
+            CardholderVerificationMethodCondition::Rfu(0x7F)
+        );
         assert_eq!(
             CardholderVerificationMethodCondition::from_code(0x80),
             CardholderVerificationMethodCondition::ReservedForIndividualPaymentSystems(0x80)
@@ -422,10 +449,7 @@ mod tests {
     #[test]
     fn list_parse_roundtrip() {
         let wire: [u8; 14] = [
-            0x00, 0x00, 0x03, 0xE8, 0x00, 0x00, 0x13, 0x88,
-            0x42, 0x03,
-            0x1E, 0x02,
-            0x1F, 0x00,
+            0x00, 0x00, 0x03, 0xE8, 0x00, 0x00, 0x13, 0x88, 0x42, 0x03, 0x1E, 0x02, 0x1F, 0x00,
         ];
         let list = CardholderVerificationMethodList::parse(&wire).unwrap();
         assert_eq!(list.amount_x, 1000);
@@ -443,15 +467,24 @@ mod tests {
             CardholderVerificationMethodCondition::IfTerminalSupportsTheCvm
         );
 
-        assert_eq!(list.rules[1].method(), CardholderVerificationMethod::Signature);
+        assert_eq!(
+            list.rules[1].method(),
+            CardholderVerificationMethod::Signature
+        );
         assert_eq!(
             list.rules[1].condition(),
             CardholderVerificationMethodCondition::IfNotUnattendedCashAndNotManualCashAndNotPurchaseWithCashback
         );
         assert!(list.rules[1].fail_cardholder_verification_if_unsuccessful());
 
-        assert_eq!(list.rules[2].method(), CardholderVerificationMethod::NoCvmRequired);
-        assert_eq!(list.rules[2].condition(), CardholderVerificationMethodCondition::Always);
+        assert_eq!(
+            list.rules[2].method(),
+            CardholderVerificationMethod::NoCvmRequired
+        );
+        assert_eq!(
+            list.rules[2].condition(),
+            CardholderVerificationMethodCondition::Always
+        );
 
         assert_eq!(list.to_bytes(), wire);
     }
@@ -468,15 +501,27 @@ mod tests {
 
     #[test]
     fn list_parse_wrong_length() {
-        assert_eq!(CardholderVerificationMethodList::parse(&[]), Err(Error::UnexpectedEof));
-        assert_eq!(CardholderVerificationMethodList::parse(&[0x00; 7]), Err(Error::UnexpectedEof));
+        assert_eq!(
+            CardholderVerificationMethodList::parse(&[]),
+            Err(Error::UnexpectedEof)
+        );
+        assert_eq!(
+            CardholderVerificationMethodList::parse(&[0x00; 7]),
+            Err(Error::UnexpectedEof)
+        );
 
         let mut wire = vec![0u8; 8];
         wire.push(0x1F);
-        assert_eq!(CardholderVerificationMethodList::parse(&wire), Err(Error::InvalidValue));
+        assert_eq!(
+            CardholderVerificationMethodList::parse(&wire),
+            Err(Error::InvalidValue)
+        );
 
         let mut wire = vec![0u8; 8];
         wire.extend_from_slice(&[0x1F, 0x00, 0x1E]);
-        assert_eq!(CardholderVerificationMethodList::parse(&wire), Err(Error::InvalidValue));
+        assert_eq!(
+            CardholderVerificationMethodList::parse(&wire),
+            Err(Error::InvalidValue)
+        );
     }
 }

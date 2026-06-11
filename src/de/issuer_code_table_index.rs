@@ -70,11 +70,17 @@ mod tests {
     fn parse_wrong_length() {
         assert_eq!(
             IssuerCodeTableIndex::parse(&[]),
-            Err(Error::WrongLength { expected: 1, got: 0 })
+            Err(Error::WrongLength {
+                expected: 1,
+                got: 0
+            })
         );
         assert_eq!(
             IssuerCodeTableIndex::parse(&[0x01, 0x02]),
-            Err(Error::WrongLength { expected: 1, got: 2 })
+            Err(Error::WrongLength {
+                expected: 1,
+                got: 2
+            })
         );
     }
 }

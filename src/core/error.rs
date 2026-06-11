@@ -8,12 +8,19 @@ pub enum Error {
     LengthTooLong,
     IndefiniteLength,
     NotConstructed,
-    WrongLength { expected: usize, got: usize },
+    WrongLength {
+        expected: usize,
+        got: usize,
+    },
     InvalidValue,
     /// Book 3 §10.2.
-    RedundantPrimitive { tag: Tag },
+    RedundantPrimitive {
+        tag: Tag,
+    },
     /// Book 3 §10.2.
-    MissingMandatory { tag: Tag },
+    MissingMandatory {
+        tag: Tag,
+    },
 }
 
 impl fmt::Display for Error {

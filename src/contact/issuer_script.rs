@@ -1,9 +1,9 @@
 //! Book 3 §10.10 / Annex E p.193 - Issuer-to-Card Script Processing.
 
-use crate::de::issuer_script_results::{IssuerScriptResult, ScriptResultNibble};
 use crate::core::tag::Tag;
 use crate::core::tags;
 use crate::core::tlv::Tlv;
+use crate::de::issuer_script_results::{IssuerScriptResult, ScriptResultNibble};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScriptTag {
@@ -50,8 +50,7 @@ where
 
         let outcome = process_one_script(script_tag, script_tlv, &mut send);
         match outcome.result.script_result {
-            ScriptResultNibble::ScriptProcessingFailed
-            | ScriptResultNibble::ScriptNotPerformed => {
+            ScriptResultNibble::ScriptProcessingFailed | ScriptResultNibble::ScriptNotPerformed => {
                 match script_tag {
                     ScriptTag::BeforeFinalGenerateAc => {
                         tvr.script_processing_failed_before_final_generate_ac = true;
@@ -211,7 +210,10 @@ mod tests {
         assert_eq!(outcome.tvr_updates, ScriptTvrUpdates::default());
         assert_eq!(outcome.script_results.len(), 1);
         let r = outcome.script_results[0].result;
-        assert_eq!(r.script_result, ScriptResultNibble::ScriptProcessingSuccessful);
+        assert_eq!(
+            r.script_result,
+            ScriptResultNibble::ScriptProcessingSuccessful
+        );
         assert_eq!(r.script_number, 0);
         assert_eq!(r.script_identifier, [0u8; 4]);
     }
@@ -234,7 +236,10 @@ mod tests {
             }
         });
         let r = outcome.script_results[0].result;
-        assert_eq!(r.script_result, ScriptResultNibble::ScriptProcessingSuccessful);
+        assert_eq!(
+            r.script_result,
+            ScriptResultNibble::ScriptProcessingSuccessful
+        );
         assert_eq!(outcome.tvr_updates, ScriptTvrUpdates::default());
     }
 
@@ -259,22 +264,22 @@ mod tests {
         let mut idx = 0;
         let outcome = process_scripts(&[&s], |_| {
             idx += 1;
-            if idx == 2 {
-                (0x6A, 0x82)
-            } else {
-                (0x90, 0x00)
-            }
+            if idx == 2 { (0x6A, 0x82) } else { (0x90, 0x00) }
         });
         assert_eq!(idx, 2);
         let r = outcome.script_results[0].result;
         assert_eq!(r.script_result, ScriptResultNibble::ScriptProcessingFailed);
         assert_eq!(r.script_number, 2);
-        assert!(outcome
-            .tvr_updates
-            .script_processing_failed_before_final_generate_ac);
-        assert!(!outcome
-            .tvr_updates
-            .script_processing_failed_after_final_generate_ac);
+        assert!(
+            outcome
+                .tvr_updates
+                .script_processing_failed_before_final_generate_ac
+        );
+        assert!(
+            !outcome
+                .tvr_updates
+                .script_processing_failed_after_final_generate_ac
+        );
     }
 
     #[test]
@@ -303,12 +308,16 @@ mod tests {
     fn after_final_genac_failure_sets_b5_not_b6() {
         let s = script_72(vec![cmd_tlv(&[0x84, 0x18, 0x00, 0x00])]);
         let outcome = process_scripts(&[&s], |_| (0x6F, 0x00));
-        assert!(!outcome
-            .tvr_updates
-            .script_processing_failed_before_final_generate_ac);
-        assert!(outcome
-            .tvr_updates
-            .script_processing_failed_after_final_generate_ac);
+        assert!(
+            !outcome
+                .tvr_updates
+                .script_processing_failed_before_final_generate_ac
+        );
+        assert!(
+            outcome
+                .tvr_updates
+                .script_processing_failed_after_final_generate_ac
+        );
     }
 
     #[test]
@@ -326,9 +335,11 @@ mod tests {
         let r = outcome.script_results[0].result;
         assert_eq!(r.script_result, ScriptResultNibble::ScriptNotPerformed);
         assert_eq!(r.script_number, 0);
-        assert!(outcome
-            .tvr_updates
-            .script_processing_failed_before_final_generate_ac);
+        assert!(
+            outcome
+                .tvr_updates
+                .script_processing_failed_before_final_generate_ac
+        );
         assert!(outcome.tsi_script_processing_was_performed);
     }
 
@@ -345,11 +356,7 @@ mod tests {
         let mut idx = 0;
         let outcome = process_scripts(&[&s1, &s2], |_| {
             idx += 1;
-            if idx == 1 {
-                (0x90, 0x00)
-            } else {
-                (0x6A, 0x82)
-            }
+            if idx == 1 { (0x90, 0x00) } else { (0x6A, 0x82) }
         });
         assert_eq!(outcome.script_results.len(), 2);
         assert_eq!(
@@ -361,12 +368,16 @@ mod tests {
             ScriptResultNibble::ScriptProcessingFailed
         );
         assert_eq!(outcome.script_results[1].result.script_number, 1);
-        assert!(!outcome
-            .tvr_updates
-            .script_processing_failed_before_final_generate_ac);
-        assert!(outcome
-            .tvr_updates
-            .script_processing_failed_after_final_generate_ac);
+        assert!(
+            !outcome
+                .tvr_updates
+                .script_processing_failed_before_final_generate_ac
+        );
+        assert!(
+            outcome
+                .tvr_updates
+                .script_processing_failed_after_final_generate_ac
+        );
     }
 
     #[test]
@@ -385,9 +396,11 @@ mod tests {
         });
         assert_eq!(commands_sent.len(), 2);
         assert_eq!(outcome.script_results.len(), 2);
-        assert!(outcome
-            .tvr_updates
-            .script_processing_failed_before_final_generate_ac);
+        assert!(
+            outcome
+                .tvr_updates
+                .script_processing_failed_before_final_generate_ac
+        );
     }
 
     #[test]
@@ -396,7 +409,10 @@ mod tests {
         let s = script_71(vec![cmd_tlv(&[0x84, 0x18, 0x00, 0x00])]);
         let outcome = process_scripts(&[&not_a_script, &s], |_| (0x90, 0x00));
         assert_eq!(outcome.script_results.len(), 1);
-        assert_eq!(outcome.script_results[0].tag, ScriptTag::BeforeFinalGenerateAc);
+        assert_eq!(
+            outcome.script_results[0].tag,
+            ScriptTag::BeforeFinalGenerateAc
+        );
     }
 
     #[test]
@@ -409,7 +425,10 @@ mod tests {
         });
         assert_eq!(calls, 0);
         let r = outcome.script_results[0].result;
-        assert_eq!(r.script_result, ScriptResultNibble::ScriptProcessingSuccessful);
+        assert_eq!(
+            r.script_result,
+            ScriptResultNibble::ScriptProcessingSuccessful
+        );
         assert_eq!(r.script_identifier, [0x01, 0x02, 0x03, 0x04]);
         assert!(outcome.tsi_script_processing_was_performed);
         assert_eq!(outcome.tvr_updates, ScriptTvrUpdates::default());

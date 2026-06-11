@@ -1,8 +1,8 @@
 //! Book 3 §5.4 - DOL resolver driven by `TransactionContext`.
 
+use crate::contact::transaction::TransactionContext;
 use crate::core::dol::{Dol, ValueFormat};
 use crate::core::tag::Tag;
-use crate::contact::transaction::TransactionContext;
 
 pub trait DolResolveExt {
     fn resolve(&self, ctx: &TransactionContext<'_>) -> Vec<u8>;
@@ -44,20 +44,14 @@ fn terminal_value_for(tag: Tag, ctx: &TransactionContext<'_>) -> Option<(ValueFo
         // 9F21 Transaction Time - n6 BCD HHMMSS.
         0x9F21 => Some((ValueFormat::Numeric, ctx.inputs.transaction_time.to_vec())),
         // 9C Transaction Type - n2, 1 BCD.
-        0x9C => Some((
-            ValueFormat::Numeric,
-            vec![ctx.inputs.transaction_type],
-        )),
+        0x9C => Some((ValueFormat::Numeric, vec![ctx.inputs.transaction_type])),
         // 9F41 Transaction Sequence Counter - n4-8 BCD.
         0x9F41 => Some((
             ValueFormat::Numeric,
             bcd_u64(ctx.inputs.transaction_sequence_counter as u64, 4),
         )),
         // 9F37 Unpredictable Number - 4 binary.
-        0x9F37 => Some((
-            ValueFormat::Other,
-            ctx.inputs.unpredictable_number.to_vec(),
-        )),
+        0x9F37 => Some((ValueFormat::Other, ctx.inputs.unpredictable_number.to_vec())),
 
         // 9F1A Terminal Country Code - n3, 2 BCD.
         0x9F1A => Some((
@@ -74,7 +68,10 @@ fn terminal_value_for(tag: Tag, ctx: &TransactionContext<'_>) -> Option<(ValueFo
         // 9F40 Additional Terminal Capabilities.
         0x9F40 => Some((
             ValueFormat::Other,
-            ctx.terminal.additional_terminal_capabilities.to_bytes().to_vec(),
+            ctx.terminal
+                .additional_terminal_capabilities
+                .to_bytes()
+                .to_vec(),
         )),
         // 9F1C Terminal Identification.
         0x9F1C => Some((
@@ -146,7 +143,7 @@ fn terminal_value_for(tag: Tag, ctx: &TransactionContext<'_>) -> Option<(ValueFo
     }
 }
 
-/// Annex B — right-justified BCD with leading zeroes (format n).
+/// Annex B - right-justified BCD with leading zeroes (format n).
 pub fn bcd_u64(mut value: u64, byte_len: usize) -> Vec<u8> {
     let n_digits = byte_len * 2;
     let mut digits = vec![0u8; n_digits];
@@ -154,10 +151,7 @@ pub fn bcd_u64(mut value: u64, byte_len: usize) -> Vec<u8> {
         *slot = (value % 10) as u8;
         value /= 10;
     }
-    digits
-        .chunks_exact(2)
-        .map(|c| (c[0] << 4) | c[1])
-        .collect()
+    digits.chunks_exact(2).map(|c| (c[0] << 4) | c[1]).collect()
 }
 
 fn be_u32(value: u64) -> Vec<u8> {
@@ -167,12 +161,12 @@ fn be_u32(value: u64) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::contact::terminal::{Terminal, TerminalApplication};
+    use crate::contact::transaction::{TransactionContext, TransactionInputs};
+    use crate::core::dol::DolEntry;
     use crate::de::additional_terminal_capabilities::AdditionalTerminalCapabilities;
     use crate::de::terminal_capabilities::TerminalCapabilities;
     use crate::de::terminal_type::TerminalType;
-    use crate::core::dol::DolEntry;
-    use crate::contact::terminal::{Terminal, TerminalApplication};
-    use crate::contact::transaction::{TransactionContext, TransactionInputs};
 
     fn fixture_terminal() -> Terminal {
         Terminal {
@@ -202,7 +196,9 @@ mod tests {
                 partial_match_allowed: false,
                 application_version_number: [0x00, 0x8C],
                 terminal_floor_limit: 10_000,
-                terminal_risk_management_data: Some(vec![0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88]),
+                terminal_risk_management_data: Some(vec![
+                    0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+                ]),
                 default_ddol: None,
                 default_tdol: None,
                 tac_denial: None,
@@ -240,10 +236,7 @@ mod tests {
         assert_eq!(bcd_u64(0, 1), vec![0x00]);
         assert_eq!(bcd_u64(9, 1), vec![0x09]);
         assert_eq!(bcd_u64(840, 2), vec![0x08, 0x40]);
-        assert_eq!(
-            bcd_u64(12_345, 6),
-            vec![0x00, 0x00, 0x00, 0x01, 0x23, 0x45]
-        );
+        assert_eq!(bcd_u64(12_345, 6), vec![0x00, 0x00, 0x00, 0x01, 0x23, 0x45]);
         assert_eq!(
             bcd_u64(999_999_999_999, 6),
             vec![0x99, 0x99, 0x99, 0x99, 0x99, 0x99]
@@ -284,10 +277,7 @@ mod tests {
         assert_eq!(resolve_one(0x9A, 3, &ctx), vec![0x26, 0x04, 0x28]);
         assert_eq!(resolve_one(0x9F21, 3, &ctx), vec![0x14, 0x30, 0x00]);
         assert_eq!(resolve_one(0x9C, 1, &ctx), vec![0x00]);
-        assert_eq!(
-            resolve_one(0x9F37, 4, &ctx),
-            vec![0xDE, 0xAD, 0xBE, 0xEF]
-        );
+        assert_eq!(resolve_one(0x9F37, 4, &ctx), vec![0xDE, 0xAD, 0xBE, 0xEF]);
     }
 
     #[test]
@@ -304,19 +294,10 @@ mod tests {
             resolve_one(0x9F40, 5, &ctx),
             t.additional_terminal_capabilities.to_bytes().to_vec()
         );
-        assert_eq!(
-            resolve_one(0x9F1C, 8, &ctx),
-            b"TERMID01".to_vec()
-        );
-        assert_eq!(
-            resolve_one(0x9F1E, 8, &ctx),
-            b"IFDSN001".to_vec()
-        );
+        assert_eq!(resolve_one(0x9F1C, 8, &ctx), b"TERMID01".to_vec());
+        assert_eq!(resolve_one(0x9F1E, 8, &ctx), b"IFDSN001".to_vec());
         assert_eq!(resolve_one(0x9F15, 2, &ctx), vec![0x59, 0x99]);
-        assert_eq!(
-            resolve_one(0x9F16, 15, &ctx),
-            b"MERCHANT0000001".to_vec()
-        );
+        assert_eq!(resolve_one(0x9F16, 15, &ctx), b"MERCHANT0000001".to_vec());
         assert_eq!(
             resolve_one(0x9F01, 6, &ctx),
             vec![0x12, 0x34, 0x56, 0x78, 0x90, 0x12]
@@ -328,10 +309,7 @@ mod tests {
         let t = fixture_terminal();
         let ctx = ctx_selected(&t);
         assert_eq!(resolve_one(0x9F09, 2, &ctx), vec![0x00, 0x8C]);
-        assert_eq!(
-            resolve_one(0x9F1B, 4, &ctx),
-            vec![0x00, 0x00, 0x27, 0x10]
-        );
+        assert_eq!(resolve_one(0x9F1B, 4, &ctx), vec![0x00, 0x00, 0x27, 0x10]);
         assert_eq!(
             resolve_one(0x9F1D, 8, &ctx),
             vec![0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88]
@@ -344,10 +322,7 @@ mod tests {
         let ctx = TransactionContext::new(&t, fixture_inputs());
         assert!(ctx.selected.is_none());
         assert_eq!(resolve_one(0x9F09, 2, &ctx), vec![0x00, 0x00]);
-        assert_eq!(
-            resolve_one(0x9F1B, 4, &ctx),
-            vec![0x00, 0x00, 0x00, 0x00]
-        );
+        assert_eq!(resolve_one(0x9F1B, 4, &ctx), vec![0x00, 0x00, 0x00, 0x00]);
         assert_eq!(resolve_one(0x9F1D, 8, &ctx), vec![0x00; 8]);
     }
 
@@ -437,10 +412,7 @@ mod tests {
         let bytes = resolve_one(0x9F5B, 10, &ctx);
         assert_eq!(
             bytes,
-            vec![
-                0x20, 0xAA, 0xBB, 0xCC, 0xDD,
-                0x12, 0x11, 0x22, 0x33, 0x44,
-            ]
+            vec![0x20, 0xAA, 0xBB, 0xCC, 0xDD, 0x12, 0x11, 0x22, 0x33, 0x44,]
         );
     }
 

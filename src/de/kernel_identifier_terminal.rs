@@ -86,11 +86,17 @@ mod tests {
     fn parse_rejects_wrong_length() {
         assert!(matches!(
             KernelIdentifierTerminal::parse(&[0u8; 7]),
-            Err(Error::WrongLength { expected: 8, got: 7 })
+            Err(Error::WrongLength {
+                expected: 8,
+                got: 7
+            })
         ));
         assert!(matches!(
             KernelIdentifierTerminal::parse(&[0u8; 9]),
-            Err(Error::WrongLength { expected: 8, got: 9 })
+            Err(Error::WrongLength {
+                expected: 8,
+                got: 9
+            })
         ));
     }
 

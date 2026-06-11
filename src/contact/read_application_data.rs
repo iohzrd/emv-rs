@@ -2,10 +2,10 @@
 
 use crate::core::apdu::sw;
 use crate::core::card_reader::CardReader;
-use crate::de::application_file_locator::ApplicationFileLocator;
 use crate::core::error::Error;
 use crate::core::read_record::{self, ReadRecordResponse};
 use crate::core::tag_store::{Source, TagStore};
+use crate::de::application_file_locator::ApplicationFileLocator;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ReadApplicationDataOutcome {
@@ -98,11 +98,11 @@ pub fn read_application_data<C: CardReader>(
 mod tests {
     use super::*;
     use crate::core::apdu::{Command, Response};
+    use crate::core::tag::Tag;
+    use crate::core::tags;
     use crate::de::application_file_locator::{
         ApplicationFileLocator, ApplicationFileLocatorEntry,
     };
-    use crate::core::tag::Tag;
-    use crate::core::tags;
 
     struct ScriptedCard {
         script: Vec<(Vec<u8>, Vec<u8>)>,

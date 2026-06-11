@@ -168,9 +168,15 @@ mod tests {
     #[test]
     fn annex_e_examples_match_table_24() {
         let atm = TerminalType::parse(&[0x14]).unwrap();
-        assert_eq!(atm.operational_control(), OperationalControl::FinancialInstitution);
+        assert_eq!(
+            atm.operational_control(),
+            OperationalControl::FinancialInstitution
+        );
         assert_eq!(atm.environment(), Environment::Unattended);
-        assert_eq!(atm.attendance_capability(), AttendanceCapability::OnlineOnly);
+        assert_eq!(
+            atm.attendance_capability(),
+            AttendanceCapability::OnlineOnly
+        );
         assert!(atm.is_unattended_financial_institution());
 
         let pos = TerminalType::parse(&[0x22]).unwrap();
@@ -214,22 +220,25 @@ mod tests {
     fn parse_wrong_length() {
         assert_eq!(
             TerminalType::parse(&[]),
-            Err(Error::WrongLength { expected: 1, got: 0 })
+            Err(Error::WrongLength {
+                expected: 1,
+                got: 0
+            })
         );
         assert_eq!(
             TerminalType::parse(&[0x11, 0x22]),
-            Err(Error::WrongLength { expected: 1, got: 2 })
+            Err(Error::WrongLength {
+                expected: 1,
+                got: 2
+            })
         );
     }
 
     #[test]
     fn roundtrip_all_table_24_codes() {
         for b in [
-            0x11u8, 0x12, 0x13,
-            0x21, 0x22, 0x23,
-            0x14, 0x15, 0x16,
-            0x24, 0x25, 0x26,
-            0x34, 0x35, 0x36,
+            0x11u8, 0x12, 0x13, 0x21, 0x22, 0x23, 0x14, 0x15, 0x16, 0x24, 0x25, 0x26, 0x34, 0x35,
+            0x36,
         ] {
             let t = TerminalType::parse(&[b]).unwrap();
             assert_eq!(t.to_byte(), b);

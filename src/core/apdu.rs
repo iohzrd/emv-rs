@@ -239,7 +239,7 @@ pub mod sw {
     pub const FILE_FILLED_BY_LAST_WRITE: u16 = 0x6381;
     pub const COUNTER_PROVIDED_BASE: u16 = 0x63C0;
 
-    /// '63Cx' — x is the counter value (e.g. VERIFY retries still possible,
+    /// '63Cx' - x is the counter value (e.g. VERIFY retries still possible,
     /// Book 3 §6.5.12.5).
     pub fn counter_provided(sw: u16) -> Option<u8> {
         (sw & 0xFFF0 == COUNTER_PROVIDED_BASE).then_some((sw & 0x000F) as u8)

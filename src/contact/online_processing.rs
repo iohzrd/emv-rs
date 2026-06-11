@@ -3,14 +3,14 @@
 //! (also used by K3 §6 Issuer Update Processing); aliased here for source
 //! compatibility.
 
+use crate::contact::transaction::TransactionContext;
 use crate::core::apdu::Command;
-use crate::core::external_authenticate as core_ea;
-use crate::de::authorisation_response_code::AuthorisationResponseCode;
 use crate::core::error::Result;
+use crate::core::external_authenticate as core_ea;
 use crate::core::generate_ac::GenerateAcResponse;
 use crate::core::terminal_action_analysis::ApplicationCryptogramType;
 use crate::core::tlv::Tlv;
-use crate::contact::transaction::TransactionContext;
+use crate::de::authorisation_response_code::AuthorisationResponseCode;
 
 pub fn external_authenticate(issuer_authentication_data: &[u8]) -> Result<Command> {
     core_ea::command(issuer_authentication_data)
@@ -84,15 +84,15 @@ mod tests {
         );
     }
 
+    use crate::contact::terminal::{Terminal, TerminalApplication};
+    use crate::contact::transaction::{TransactionContext, TransactionInputs};
+    use crate::core::generate_ac::{GenerateAcFormat, GenerateAcResponse};
+    use crate::core::tag::Tag;
+    use crate::core::tlv::{Tlv, Value};
     use crate::de::additional_terminal_capabilities::AdditionalTerminalCapabilities;
     use crate::de::cryptogram_information_data::CryptogramInformationData;
     use crate::de::terminal_capabilities::TerminalCapabilities;
     use crate::de::terminal_type::TerminalType;
-    use crate::core::generate_ac::{GenerateAcFormat, GenerateAcResponse};
-    use crate::core::tag::Tag;
-    use crate::core::tlv::{Tlv, Value};
-    use crate::contact::transaction::{TransactionContext, TransactionInputs};
-    use crate::contact::terminal::{Terminal, TerminalApplication};
 
     struct MockAuthHost {
         response: OnlineAuthorisationResponse,
@@ -175,12 +175,18 @@ mod tests {
     fn online_authorisation_response_carries_scripts() {
         let script_71 = Tlv::new(
             Tag(0x71),
-            Value::Constructed(vec![Tlv::primitive(Tag(0x86), vec![0x80, 0x18, 0x00, 0x00, 0x05])]),
+            Value::Constructed(vec![Tlv::primitive(
+                Tag(0x86),
+                vec![0x80, 0x18, 0x00, 0x00, 0x05],
+            )]),
         )
         .unwrap();
         let script_72 = Tlv::new(
             Tag(0x72),
-            Value::Constructed(vec![Tlv::primitive(Tag(0x86), vec![0x84, 0xFA, 0x00, 0x00, 0x00])]),
+            Value::Constructed(vec![Tlv::primitive(
+                Tag(0x86),
+                vec![0x84, 0xFA, 0x00, 0x00, 0x00],
+            )]),
         )
         .unwrap();
         let mut host = MockAuthHost {

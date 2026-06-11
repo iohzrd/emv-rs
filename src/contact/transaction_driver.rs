@@ -1,38 +1,40 @@
 //! Book 3 §8 / §10 - Transaction driver.
 
-use crate::core::apdu::{Command, sw};
 use crate::contact::application_selection::{self, Candidate};
 use crate::contact::dol_resolve::DolResolveExt;
-use crate::core::card_reader::CardReader;
-use crate::core::crl::{self, CrlEntry};
-use crate::de::application_selection_indicator::ApplicationSelectionIndicator;
-use crate::de::payment_system_directory::PaymentSystemDirectoryRecord;
-use crate::core::ecc_oda::{self, EccCaPublicKey};
-use crate::core::error::Error;
 use crate::contact::fci::PseFci;
-use crate::core::fci::AdfFci;
-use crate::core::generate_ac::{self, GenerateAcResponse, SignatureRequest};
-use crate::core::get_data;
 use crate::contact::issuer_script::{self, ScriptProcessingOutcome, ScriptTag};
-use crate::core::oda::{self, CaPublicKey, OdaMethod, OdaOutcome};
 use crate::contact::oda_input;
 use crate::contact::online_processing::{
     self, ExternalAuthenticateOutcome, OnlineAuthorisation, OnlineAuthorisationResponse,
 };
+use crate::contact::read_application_data::{
+    self, ReadApplicationDataError, ReadApplicationDataOutcome,
+};
+use crate::contact::terminal::{Terminal, TerminalApplication};
+use crate::contact::terminal_risk_management::{
+    self, RandomSelectionParameters, TerminalRiskManagementContext, TerminalRiskManagementOutcome,
+};
+use crate::contact::transaction::{TransactionContext, TransactionInputs};
+use crate::core::apdu::{Command, sw};
+use crate::core::card_reader::CardReader;
+use crate::core::crl::{self, CrlEntry};
+use crate::core::ecc_oda::{self, EccCaPublicKey};
+use crate::core::error::Error;
+use crate::core::fci::AdfFci;
+use crate::core::generate_ac::{self, GenerateAcResponse, SignatureRequest};
+use crate::core::get_data;
+use crate::core::oda::{self, CaPublicKey, OdaMethod, OdaOutcome};
 use crate::core::processing_options::{self, ProcessingOptionsResponse};
-use crate::contact::read_application_data::{self, ReadApplicationDataError, ReadApplicationDataOutcome};
 use crate::core::read_record;
 use crate::core::select::{self, SelectOccurrence};
 use crate::core::tag::Tag;
 use crate::core::tag_store::Source;
 use crate::core::tags;
-use crate::contact::terminal::{Terminal, TerminalApplication};
 use crate::core::terminal_action_analysis::ApplicationCryptogramType;
-use crate::contact::terminal_risk_management::{
-    self, RandomSelectionParameters, TerminalRiskManagementContext, TerminalRiskManagementOutcome,
-};
 use crate::core::tlv::Tlv;
-use crate::contact::transaction::{TransactionContext, TransactionInputs};
+use crate::de::application_selection_indicator::ApplicationSelectionIndicator;
+use crate::de::payment_system_directory::PaymentSystemDirectoryRecord;
 
 /// Book 1 §12.2.2.
 const PSE_NAME: &[u8] = b"1PAY.SYS.DDF01";
@@ -87,7 +89,10 @@ pub enum DriverError<TransportError, AuthError> {
     Auth(AuthError),
     Spec(Error),
     /// Book 3 §8.1 - non-{'9000','63Cx','6283'} terminates.
-    StatusWord { command: &'static str, sw: u16 },
+    StatusWord {
+        command: &'static str,
+        sw: u16,
+    },
     UnknownAid,
     NoMatchingApplication,
     NotSelected,
@@ -1216,7 +1221,6 @@ impl<'t, C: CardReader, A: OnlineAuthorisation> Transaction<'t, C, A> {
         }
     }
 
-
     /// Book 2 §12.5.3 - verify XDA SDAD on first GENERATE AC.
     pub fn verify_xda_first_generate_ac(
         &mut self,
@@ -1408,12 +1412,12 @@ impl<'t, C: CardReader, A: OnlineAuthorisation> Transaction<'t, C, A> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::contact::terminal::TerminalApplication;
     use crate::core::apdu::{Command, Response};
     use crate::de::additional_terminal_capabilities::AdditionalTerminalCapabilities;
     use crate::de::authorisation_response_code::AuthorisationResponseCode;
     use crate::de::terminal_capabilities::TerminalCapabilities;
     use crate::de::terminal_type::TerminalType;
-    use crate::contact::terminal::TerminalApplication;
 
     struct ScriptedCard {
         script: Vec<(Vec<u8>, Vec<u8>)>,
@@ -2113,7 +2117,11 @@ mod tests {
         let terminal = fixture_terminal();
         let mut tx = Transaction::new(card, &terminal, TransactionInputs::default(), auth);
         let resp = tx
-            .first_generate_ac(ApplicationCryptogramType::Arqc, SignatureRequest::None, vec![])
+            .first_generate_ac(
+                ApplicationCryptogramType::Arqc,
+                SignatureRequest::None,
+                vec![],
+            )
             .unwrap();
         assert_eq!(resp.atc, [0x00, 0x01]);
         assert_eq!(
@@ -2176,7 +2184,11 @@ mod tests {
         assert!(read_outcome.oda_input.is_empty());
 
         let first = tx
-            .first_generate_ac(ApplicationCryptogramType::Arqc, SignatureRequest::None, vec![])
+            .first_generate_ac(
+                ApplicationCryptogramType::Arqc,
+                SignatureRequest::None,
+                vec![],
+            )
             .unwrap();
         assert_eq!(first.atc, [0x00, 0x07]);
 
@@ -2188,7 +2200,11 @@ mod tests {
         assert!(auth_resp.issuer_authentication_data.is_none());
 
         let second = tx
-            .second_generate_ac(ApplicationCryptogramType::Tc, SignatureRequest::None, vec![])
+            .second_generate_ac(
+                ApplicationCryptogramType::Tc,
+                SignatureRequest::None,
+                vec![],
+            )
             .unwrap();
         assert_eq!(second.atc, [0x00, 0x08]);
 
@@ -2437,7 +2453,6 @@ mod tests {
         assert!(!outcome.upper_consecutive_offline_limit_exceeded);
         assert!(!outcome.new_card);
     }
-
 
     fn aip_with_methods(
         sda: bool,
@@ -2905,7 +2920,6 @@ mod tests {
         assert!(!outcome.transaction_selected_randomly_for_online_processing);
     }
 
-
     fn aip_with_issuer_auth(
         supported: bool,
     ) -> crate::de::application_interchange_profile::ApplicationInterchangeProfile {
@@ -3048,7 +3062,6 @@ mod tests {
         assert!(tx.ctx.tsi.issuer_authentication_was_performed);
         assert!(tx.ctx.tvr.issuer_authentication_failed);
     }
-
 
     fn cmd_tlv(bytes: &[u8]) -> Tlv {
         Tlv::primitive(tags::ISSUER_SCRIPT_COMMAND, bytes.to_vec())
@@ -3239,7 +3252,6 @@ mod tests {
         assert!(tx.ctx.tvr.script_processing_failed_before_final_generate_ac);
     }
 
-
     #[test]
     fn issuer_script_results_initially_empty() {
         let terminal = fixture_terminal();
@@ -3283,7 +3295,10 @@ mod tests {
         assert_eq!(tx.ctx.issuer_script_results.len(), 2);
         // First: success, sequence 0 (Annex A5: '0' on success), id AABBCCDD.
         let e1 = tx.ctx.issuer_script_results[0];
-        assert_eq!(e1.script_result, ScriptResultNibble::ScriptProcessingSuccessful);
+        assert_eq!(
+            e1.script_result,
+            ScriptResultNibble::ScriptProcessingSuccessful
+        );
         assert_eq!(e1.script_number, 0);
         assert_eq!(e1.script_identifier, [0xAA, 0xBB, 0xCC, 0xDD]);
         // Second: failed, sequence 1, id 11223344.
@@ -3339,7 +3354,10 @@ mod tests {
         );
         // Both succeeded.
         for e in &tx.ctx.issuer_script_results {
-            assert_eq!(e.script_result, ScriptResultNibble::ScriptProcessingSuccessful);
+            assert_eq!(
+                e.script_result,
+                ScriptResultNibble::ScriptProcessingSuccessful
+            );
         }
     }
 
@@ -3377,9 +3395,8 @@ mod tests {
         assert_eq!(e.script_identifier, [0u8; 4]);
     }
 
-
-    use crate::de::cryptogram_information_data::CryptogramInformationData;
     use crate::core::generate_ac::GenerateAcFormat;
+    use crate::de::cryptogram_information_data::CryptogramInformationData;
     use sha1::{Digest, Sha1};
 
     fn cda_identity_icc_pk(n_ic: usize) -> oda::IccPublicKey {
@@ -3623,7 +3640,6 @@ mod tests {
         assert!(tx.ctx.cda.is_none());
     }
 
-
     fn fixture_genac_response(cid_byte: u8) -> GenerateAcResponse {
         GenerateAcResponse {
             format: GenerateAcFormat::Format1,
@@ -3821,7 +3837,6 @@ mod tests {
         assert!(!tx.ctx.tsi.offline_data_authentication_was_performed);
     }
 
-
     fn make_tx_for_tc_hash(terminal: &Terminal) -> Transaction<'_, ScriptedCard, MockAuth> {
         Transaction {
             card: empty_card(),
@@ -3858,7 +3873,11 @@ mod tests {
         let mut tx = make_tx_for_tc_hash(&terminal);
         tx.ctx
             .tag_store
-            .insert_primitive(tags::TDOL, vec![0x9F, 0x37, 0x04], Source::Record { sfi: 1, record: 1 })
+            .insert_primitive(
+                tags::TDOL,
+                vec![0x9F, 0x37, 0x04],
+                Source::Record { sfi: 1, record: 1 },
+            )
             .unwrap();
 
         tx.prepare_tc_hash_for_dol(&dol_with_98());
@@ -3900,9 +3919,8 @@ mod tests {
             tx.ctx.tc_hash_value.unwrap(),
             // SHA-1("") = da39a3ee5e6b4b0d3255bfef95601890afd80709
             [
-                0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d,
-                0x32, 0x55, 0xbf, 0xef, 0x95, 0x60, 0x18, 0x90,
-                0xaf, 0xd8, 0x07, 0x09,
+                0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d, 0x32, 0x55, 0xbf, 0xef, 0x95, 0x60,
+                0x18, 0x90, 0xaf, 0xd8, 0x07, 0x09,
             ]
         );
         assert!(
@@ -3922,7 +3940,11 @@ mod tests {
         // ICC TDOL = "9F 37 04" (one entry: UN, 4 bytes).
         tx.ctx
             .tag_store
-            .insert_primitive(tags::TDOL, vec![0x9F, 0x37, 0x04], Source::Record { sfi: 1, record: 1 })
+            .insert_primitive(
+                tags::TDOL,
+                vec![0x9F, 0x37, 0x04],
+                Source::Record { sfi: 1, record: 1 },
+            )
             .unwrap();
         tx.ctx.inputs.unpredictable_number = [0xDE, 0xAD, 0xBE, 0xEF];
 

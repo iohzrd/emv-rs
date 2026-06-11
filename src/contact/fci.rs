@@ -28,10 +28,15 @@ pub struct DdfFci {
 impl PseFci {
     pub fn parse(data: &[u8]) -> Result<Self> {
         let proprietary = parse_outer_template(data)?;
-        let df_name = primitive_bytes(take_mandatory(&proprietary.outer, tags::DEDICATED_FILE_NAME)?)?
-            .to_vec();
-        let sfi_of_directory_ef =
-            single_byte(take_mandatory(&proprietary.inner, tags::SHORT_FILE_IDENTIFIER)?)?;
+        let df_name = primitive_bytes(take_mandatory(
+            &proprietary.outer,
+            tags::DEDICATED_FILE_NAME,
+        )?)?
+        .to_vec();
+        let sfi_of_directory_ef = single_byte(take_mandatory(
+            &proprietary.inner,
+            tags::SHORT_FILE_IDENTIFIER,
+        )?)?;
         Ok(PseFci {
             df_name,
             sfi_of_directory_ef,
@@ -51,10 +56,15 @@ impl PseFci {
 impl DdfFci {
     pub fn parse(data: &[u8]) -> Result<Self> {
         let proprietary = parse_outer_template(data)?;
-        let df_name = primitive_bytes(take_mandatory(&proprietary.outer, tags::DEDICATED_FILE_NAME)?)?
-            .to_vec();
-        let sfi_of_directory_ef =
-            single_byte(take_mandatory(&proprietary.inner, tags::SHORT_FILE_IDENTIFIER)?)?;
+        let df_name = primitive_bytes(take_mandatory(
+            &proprietary.outer,
+            tags::DEDICATED_FILE_NAME,
+        )?)?
+        .to_vec();
+        let sfi_of_directory_ef = single_byte(take_mandatory(
+            &proprietary.inner,
+            tags::SHORT_FILE_IDENTIFIER,
+        )?)?;
         Ok(DdfFci {
             df_name,
             sfi_of_directory_ef,

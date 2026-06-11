@@ -165,8 +165,10 @@ where
         }
 
         // §10.5 step C - supported. Condition '03' folds support into the condition.
-        let supported = matches!(condition, CardholderVerificationMethodCondition::IfTerminalSupportsTheCvm)
-            || ctx.support.supports(method);
+        let supported = matches!(
+            condition,
+            CardholderVerificationMethodCondition::IfTerminalSupportsTheCvm
+        ) || ctx.support.supports(method);
         if !supported {
             apply_unsupported_tvr_bits(method, &ctx.support, &mut tvr);
             if rule.apply_succeeding_cv_rule_if_unsuccessful() {
@@ -200,7 +202,10 @@ where
                     | CardholderVerificationMethod::EncipheredPinVerifiedOnline => 0x00,
                     _ => 0x02,
                 };
-                if matches!(method, CardholderVerificationMethod::EncipheredPinVerifiedOnline) {
+                if matches!(
+                    method,
+                    CardholderVerificationMethod::EncipheredPinVerifiedOnline
+                ) {
                     tvr.online_cvm_captured = true;
                 }
                 return CvmProcessingOutcome {
@@ -294,9 +299,7 @@ fn evaluate_condition(
                 && !ctx.transaction_is_manual_cash
                 && !ctx.transaction_is_purchase_with_cashback
         }
-        IfTerminalSupportsTheCvm => {
-            is_method_recognised(method) && ctx.support.supports(method)
-        }
+        IfTerminalSupportsTheCvm => is_method_recognised(method) && ctx.support.supports(method),
         IfManualCash => ctx.transaction_is_manual_cash,
         IfPurchaseWithCashback => ctx.transaction_is_purchase_with_cashback,
         IfTransactionIsInTheApplicationCurrencyAndIsUnderXValue => {
@@ -357,7 +360,7 @@ fn apply_unsupported_tvr_bits(
     }
 }
 
-/// Book 3 §6.3.5 — a VERIFY-related failure that is not a CVM outcome.
+/// Book 3 §6.3.5 - a VERIFY-related failure that is not a CVM outcome.
 #[derive(Debug)]
 pub enum OfflinePinError<E> {
     Transport(E),
@@ -366,7 +369,7 @@ pub enum OfflinePinError<E> {
     UnallocatedStatusWord(u16),
 }
 
-/// Book 3 §10.5.1 + §6.5.12 — plaintext offline PIN against the ICC.
+/// Book 3 §10.5.1 + §6.5.12 - plaintext offline PIN against the ICC.
 pub fn verify_plaintext_offline_pin<C: CardReader>(
     card: &mut C,
     pin: &[u8],
@@ -377,7 +380,7 @@ pub fn verify_plaintext_offline_pin<C: CardReader>(
     transmit_verify(card, &command)
 }
 
-/// Book 2 §7.2 + Book 3 §10.5.1 — enciphered offline PIN against the ICC.
+/// Book 2 §7.2 + Book 3 §10.5.1 - enciphered offline PIN against the ICC.
 /// `fill_random` supplies the §7.2 step-3 padding (N−17 unpredictable bytes,
 /// ISO/IEC 18031); return false if no randomness is available.
 pub fn verify_enciphered_offline_pin<C: CardReader>(
@@ -390,7 +393,7 @@ pub fn verify_enciphered_offline_pin<C: CardReader>(
         return Ok(CvmExecutionResult::PinPadNotWorkingOrAbsent);
     };
 
-    // §7.2 step 2: GET CHALLENGE — anything other than 8 bytes with '9000'
+    // §7.2 step 2: GET CHALLENGE - anything other than 8 bytes with '9000'
     // means the offline enciphered PIN CVM has failed.
     let challenge = card
         .transmit(&get_challenge::command())
@@ -430,14 +433,12 @@ pub fn verify_enciphered_offline_pin<C: CardReader>(
     )
 }
 
-/// Book 3 §6.5.12 + §10.5.1 — VERIFY status word → CVM execution result.
+/// Book 3 §6.5.12 + §10.5.1 - VERIFY status word → CVM execution result.
 fn transmit_verify<C: CardReader>(
     card: &mut C,
     command: &Command,
 ) -> Result<CvmExecutionResult, OfflinePinError<C::Error>> {
-    let response = card
-        .transmit(command)
-        .map_err(OfflinePinError::Transport)?;
+    let response = card.transmit(command).map_err(OfflinePinError::Transport)?;
     match response.status_word() {
         sw::OK => Ok(CvmExecutionResult::Successful),
         sw::AUTHENTICATION_METHOD_BLOCKED | sw::REFERENCED_DATA_INVALIDATED => {
@@ -451,7 +452,7 @@ fn transmit_verify<C: CardReader>(
     }
 }
 
-/// Book 2 §7.1 — ICC PIN Encipherment PK ('9F2D' chain) when all of its data
+/// Book 2 §7.1 - ICC PIN Encipherment PK ('9F2D' chain) when all of its data
 /// objects were obtained, otherwise the ICC PK already recovered by offline
 /// data authentication. `None` means PIN encipherment has failed (rule 3).
 pub fn recover_pin_encipherment_public_key(
@@ -579,7 +580,9 @@ mod tests {
     #[test]
     fn empty_rules_treated_as_absent_per_spec_note() {
         let l = list(&[], 0, 0);
-        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Successful);
+        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| {
+            CvmExecutionResult::Successful
+        });
         assert_eq!(outcome.cvm_results, [0x3F, 0x00, 0x00]);
         assert!(!outcome.tsi_cardholder_verification_was_performed);
     }
@@ -587,7 +590,9 @@ mod tests {
     #[test]
     fn first_rule_succeeds_with_offline_pin() {
         let l = list(&[(cvm(0b000001, false), 0x00)], 0, 0);
-        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Successful);
+        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| {
+            CvmExecutionResult::Successful
+        });
         assert_eq!(outcome.cvm_results, [0x01, 0x00, 0x02]);
         assert_eq!(outcome.tvr_updates, CvmTvrUpdates::default());
         assert!(outcome.tsi_cardholder_verification_was_performed);
@@ -596,10 +601,16 @@ mod tests {
     #[test]
     fn online_pin_success_sets_unknown_and_online_cvm_captured() {
         let l = list(&[(cvm(0b000010, false), 0x00)], 0, 0);
-        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Successful);
+        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| {
+            CvmExecutionResult::Successful
+        });
         assert_eq!(outcome.cvm_results, [0x02, 0x00, 0x00]);
         assert!(outcome.tvr_updates.online_cvm_captured);
-        assert!(!outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            !outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
         assert!(outcome.tsi_cardholder_verification_was_performed);
     }
 
@@ -608,41 +619,51 @@ mod tests {
         let l = list(&[(cvm(0b011110, false), 0x00)], 0, 0);
         let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Unknown);
         assert_eq!(outcome.cvm_results, [0x1E, 0x00, 0x00]);
-        assert!(!outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            !outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
         assert!(outcome.tsi_cardholder_verification_was_performed);
     }
 
     #[test]
     fn no_cvm_required_succeeds() {
         let l = list(&[(cvm(0b011111, false), 0x00)], 0, 0);
-        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Successful);
+        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| {
+            CvmExecutionResult::Successful
+        });
         assert_eq!(outcome.cvm_results, [0x1F, 0x00, 0x02]);
-        assert!(!outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            !outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
     }
 
     #[test]
     fn fail_cvm_processing_short_circuits() {
         let l = list(
-            &[
-                (cvm(0b000000, true), 0x00),
-                (cvm(0b011111, false), 0x00),
-            ],
+            &[(cvm(0b000000, true), 0x00), (cvm(0b011111, false), 0x00)],
             0,
             0,
         );
-        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Successful);
+        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| {
+            CvmExecutionResult::Successful
+        });
         assert_eq!(outcome.cvm_results, [0x40, 0x00, 0x01]);
-        assert!(outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
         assert!(outcome.tsi_cardholder_verification_was_performed);
     }
 
     #[test]
     fn failed_with_apply_next_falls_through_to_next_rule() {
         let l = list(
-            &[
-                (cvm(0b000001, true), 0x00),
-                (cvm(0b011110, false), 0x00),
-            ],
+            &[(cvm(0b000001, true), 0x00), (cvm(0b011110, false), 0x00)],
             0,
             0,
         );
@@ -657,22 +678,27 @@ mod tests {
         });
         assert_eq!(call, 2);
         assert_eq!(outcome.cvm_results, [0x1E, 0x00, 0x00]);
-        assert!(!outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            !outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
     }
 
     #[test]
     fn failed_without_apply_next_terminates() {
         let l = list(
-            &[
-                (cvm(0b000001, false), 0x00),
-                (cvm(0b011110, false), 0x00),
-            ],
+            &[(cvm(0b000001, false), 0x00), (cvm(0b011110, false), 0x00)],
             0,
             0,
         );
         let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Failed);
         assert_eq!(outcome.cvm_results, [0x01, 0x00, 0x01]);
-        assert!(outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
     }
 
     #[test]
@@ -680,29 +706,38 @@ mod tests {
         let l = list(&[(cvm(0b000001, true), 0x00)], 0, 0);
         let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Failed);
         assert_eq!(outcome.cvm_results, [0x41, 0x00, 0x01]);
-        assert!(outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
     }
 
     #[test]
     fn no_conditions_satisfied_yields_3f0001() {
         let l = list(&[(cvm(0b000001, false), 0x01)], 0, 0);
-        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Successful);
+        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| {
+            CvmExecutionResult::Successful
+        });
         assert_eq!(outcome.cvm_results, [0x3F, 0x00, 0x01]);
-        assert!(outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
         assert!(outcome.tsi_cardholder_verification_was_performed);
     }
 
     #[test]
     fn condition_under_x_uses_amount_x() {
         let l = list(
-            &[
-                (cvm(0b000010, true), 0x06),
-                (cvm(0b011110, false), 0x00),
-            ],
+            &[(cvm(0b000010, true), 0x06), (cvm(0b011110, false), 0x00)],
             5_000,
             10_000,
         );
-        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Successful);
+        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| {
+            CvmExecutionResult::Successful
+        });
         assert_eq!(outcome.cvm_results, [0x42, 0x06, 0x00]);
         assert!(outcome.tvr_updates.online_cvm_captured);
     }
@@ -710,10 +745,7 @@ mod tests {
     #[test]
     fn condition_over_x_skips_when_amount_below() {
         let l = list(
-            &[
-                (cvm(0b000010, true), 0x07),
-                (cvm(0b011110, false), 0x00),
-            ],
+            &[(cvm(0b000010, true), 0x07), (cvm(0b011110, false), 0x00)],
             5_000,
             10_000,
         );
@@ -726,10 +758,7 @@ mod tests {
         let mut ctx = ctx_purchase();
         ctx.transaction_in_application_currency = false;
         let l = list(
-            &[
-                (cvm(0b000010, true), 0x06),
-                (cvm(0b011110, false), 0x00),
-            ],
+            &[(cvm(0b000010, true), 0x06), (cvm(0b011110, false), 0x00)],
             5_000,
             10_000,
         );
@@ -740,7 +769,9 @@ mod tests {
     #[test]
     fn condition_03_supported_runs_cvm() {
         let l = list(&[(cvm(0b000010, false), 0x03)], 0, 0);
-        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Successful);
+        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| {
+            CvmExecutionResult::Successful
+        });
         assert_eq!(outcome.cvm_results, [0x02, 0x03, 0x00]);
         assert!(outcome.tvr_updates.online_cvm_captured);
     }
@@ -750,10 +781,7 @@ mod tests {
         let mut ctx = ctx_purchase();
         ctx.support.signature = false;
         let l = list(
-            &[
-                (cvm(0b011110, true), 0x03),
-                (cvm(0b011111, false), 0x00),
-            ],
+            &[(cvm(0b011110, true), 0x03), (cvm(0b011111, false), 0x00)],
             0,
             0,
         );
@@ -774,28 +802,26 @@ mod tests {
     #[test]
     fn condition_rfu_treated_as_unsatisfied() {
         let l = list(
-            &[
-                (cvm(0b000001, true), 0x0A),
-                (cvm(0b011111, false), 0x00),
-            ],
+            &[(cvm(0b000001, true), 0x0A), (cvm(0b011111, false), 0x00)],
             0,
             0,
         );
-        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Successful);
+        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| {
+            CvmExecutionResult::Successful
+        });
         assert_eq!(outcome.cvm_results, [0x1F, 0x00, 0x02]);
     }
 
     #[test]
     fn unrecognised_cvm_sets_bit_and_falls_through() {
         let l = list(
-            &[
-                (cvm(0b110000, true), 0x00),
-                (cvm(0b011111, false), 0x00),
-            ],
+            &[(cvm(0b110000, true), 0x00), (cvm(0b011111, false), 0x00)],
             0,
             0,
         );
-        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Successful);
+        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| {
+            CvmExecutionResult::Successful
+        });
         assert!(outcome.tvr_updates.unrecognised_cvm);
         assert_eq!(outcome.cvm_results, [0x1F, 0x00, 0x02]);
     }
@@ -803,9 +829,15 @@ mod tests {
     #[test]
     fn unrecognised_cvm_without_apply_next_terminates_with_3f() {
         let l = list(&[(cvm(0b110000, false), 0x00)], 0, 0);
-        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Successful);
+        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| {
+            CvmExecutionResult::Successful
+        });
         assert!(outcome.tvr_updates.unrecognised_cvm);
-        assert!(outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
         assert_eq!(outcome.cvm_results, [0x3F, 0x00, 0x01]);
     }
 
@@ -815,10 +847,16 @@ mod tests {
         ctx.support.enciphered_pin_verified_online = false;
         let l = list(&[(cvm(0b000010, false), 0x00)], 0, 0);
         let outcome = process_cvm_list(Some(&l), &ctx, |_| CvmExecutionResult::Successful);
-        assert!(outcome
-            .tvr_updates
-            .pin_entry_required_and_pin_pad_not_present_or_not_working);
-        assert!(outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            outcome
+                .tvr_updates
+                .pin_entry_required_and_pin_pad_not_present_or_not_working
+        );
+        assert!(
+            outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
         assert_eq!(outcome.cvm_results, [0x02, 0x00, 0x01]);
     }
 
@@ -828,18 +866,17 @@ mod tests {
         ctx.support.plaintext_offline_pin_by_icc = false;
         ctx.support.enciphered_offline_pin_by_icc = true;
         let l = list(
-            &[
-                (cvm(0b000001, true), 0x00),
-                (cvm(0b011111, false), 0x00),
-            ],
+            &[(cvm(0b000001, true), 0x00), (cvm(0b011111, false), 0x00)],
             0,
             0,
         );
         let outcome = process_cvm_list(Some(&l), &ctx, |_| CvmExecutionResult::Successful);
         assert_eq!(outcome.cvm_results, [0x1F, 0x00, 0x02]);
-        assert!(!outcome
-            .tvr_updates
-            .pin_entry_required_and_pin_pad_not_present_or_not_working);
+        assert!(
+            !outcome
+                .tvr_updates
+                .pin_entry_required_and_pin_pad_not_present_or_not_working
+        );
     }
 
     #[test]
@@ -850,30 +887,28 @@ mod tests {
         ctx.support.plaintext_offline_pin_by_icc_and_signature = false;
         ctx.support.enciphered_offline_pin_by_icc_and_signature = false;
         let l = list(
-            &[
-                (cvm(0b000001, true), 0x00),
-                (cvm(0b011111, false), 0x00),
-            ],
+            &[(cvm(0b000001, true), 0x00), (cvm(0b011111, false), 0x00)],
             0,
             0,
         );
         let outcome = process_cvm_list(Some(&l), &ctx, |_| CvmExecutionResult::Successful);
-        assert!(outcome
-            .tvr_updates
-            .pin_entry_required_and_pin_pad_not_present_or_not_working);
+        assert!(
+            outcome
+                .tvr_updates
+                .pin_entry_required_and_pin_pad_not_present_or_not_working
+        );
     }
 
     #[test]
     fn unsupported_biometric_sets_a_selected_biometric_type_not_supported() {
         let l = list(
-            &[
-                (cvm(0b001000, true), 0x00),
-                (cvm(0b011111, false), 0x00),
-            ],
+            &[(cvm(0b001000, true), 0x00), (cvm(0b011111, false), 0x00)],
             0,
             0,
         );
-        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| CvmExecutionResult::Successful);
+        let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| {
+            CvmExecutionResult::Successful
+        });
         assert!(outcome.tvr_updates.a_selected_biometric_type_not_supported);
         assert_eq!(outcome.cvm_results, [0x1F, 0x00, 0x02]);
     }
@@ -884,20 +919,23 @@ mod tests {
         let outcome = process_cvm_list(Some(&l), &ctx_purchase(), |_| {
             CvmExecutionResult::PinEntryBypassed
         });
-        assert!(outcome
-            .tvr_updates
-            .pin_entry_required_pin_pad_present_but_pin_was_not_entered);
-        assert!(outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            outcome
+                .tvr_updates
+                .pin_entry_required_pin_pad_present_but_pin_was_not_entered
+        );
+        assert!(
+            outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
         assert_eq!(outcome.cvm_results, [0x01, 0x00, 0x01]);
     }
 
     #[test]
     fn pin_pad_not_working_sets_b5_byte3_and_falls_through_with_apply_next() {
         let l = list(
-            &[
-                (cvm(0b000001, true), 0x00),
-                (cvm(0b011111, false), 0x00),
-            ],
+            &[(cvm(0b000001, true), 0x00), (cvm(0b011111, false), 0x00)],
             0,
             0,
         );
@@ -910,9 +948,11 @@ mod tests {
                 CvmExecutionResult::Successful
             }
         });
-        assert!(outcome
-            .tvr_updates
-            .pin_entry_required_and_pin_pad_not_present_or_not_working);
+        assert!(
+            outcome
+                .tvr_updates
+                .pin_entry_required_and_pin_pad_not_present_or_not_working
+        );
         assert_eq!(outcome.cvm_results, [0x1F, 0x00, 0x02]);
     }
 
@@ -923,7 +963,11 @@ mod tests {
             CvmExecutionResult::PinTryLimitExceeded
         });
         assert!(outcome.tvr_updates.pin_try_limit_exceeded);
-        assert!(outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
     }
 
     #[test]
@@ -943,7 +987,11 @@ mod tests {
         let outcome = process_cvm_list(Some(&l), &ctx, |_| CvmExecutionResult::Successful);
         assert_eq!(outcome.cvm_results, [0x42, 0x09, 0x00]);
         assert!(outcome.tvr_updates.online_cvm_captured);
-        assert!(!outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            !outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
     }
 
     #[test]
@@ -962,7 +1010,11 @@ mod tests {
         ctx.amount_authorised = 500;
         let outcome = process_cvm_list(Some(&l), &ctx, |_| CvmExecutionResult::Unknown);
         assert_eq!(outcome.cvm_results, [0x5E, 0x02, 0x00]);
-        assert!(!outcome.tvr_updates.cardholder_verification_was_not_successful);
+        assert!(
+            !outcome
+                .tvr_updates
+                .cardholder_verification_was_not_successful
+        );
     }
 
     #[test]

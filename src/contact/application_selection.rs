@@ -1,10 +1,10 @@
 //! Book 1 §12 p.48 - Application Selection.
 
+use crate::core::fci::AdfFci;
 use crate::de::application_priority_indicator::ApplicationPriorityIndicator;
 use crate::de::application_selection_indicator::ApplicationSelectionIndicator;
 use crate::de::issuer_code_table_index::IssuerCodeTableIndex;
 use crate::de::payment_system_directory::AdfDirectoryEntry;
-use crate::core::fci::AdfFci;
 
 /// §12.3.1.
 pub fn aid_matches_df_name(
@@ -188,10 +188,7 @@ mod tests {
 
     #[test]
     fn empty_candidates_terminate() {
-        assert_eq!(
-            final_selection(&[], true),
-            FinalSelectionOutcome::Terminate,
-        );
+        assert_eq!(final_selection(&[], true), FinalSelectionOutcome::Terminate,);
         assert_eq!(
             final_selection(&[], false),
             FinalSelectionOutcome::Terminate,

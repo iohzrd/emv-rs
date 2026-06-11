@@ -139,10 +139,7 @@ mod tests {
 
     #[test]
     fn parse_two_entries_roundtrip() {
-        let wire = [
-            0x21, 0x01, 0x02, 0x03, 0x04,
-            0x12, 0xAA, 0xBB, 0xCC, 0xDD,
-        ];
+        let wire = [0x21, 0x01, 0x02, 0x03, 0x04, 0x12, 0xAA, 0xBB, 0xCC, 0xDD];
         let parsed = IssuerScriptResults::parse(&wire).unwrap();
         assert_eq!(parsed.0.len(), 2);
 
@@ -174,7 +171,10 @@ mod tests {
     fn parse_wrong_length() {
         assert_eq!(
             IssuerScriptResults::parse(&[0x00, 0x00, 0x00]),
-            Err(Error::WrongLength { expected: 5, got: 3 })
+            Err(Error::WrongLength {
+                expected: 5,
+                got: 3
+            })
         );
         assert_eq!(
             IssuerScriptResults::parse(&[0; 6]),

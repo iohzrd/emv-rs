@@ -68,11 +68,17 @@ mod tests {
     fn parse_wrong_length() {
         assert_eq!(
             CommonCoreIdentifier::parse(&[]),
-            Err(Error::WrongLength { expected: 1, got: 0 })
+            Err(Error::WrongLength {
+                expected: 1,
+                got: 0
+            })
         );
         assert_eq!(
             CommonCoreIdentifier::parse(&[0, 0]),
-            Err(Error::WrongLength { expected: 1, got: 2 })
+            Err(Error::WrongLength {
+                expected: 1,
+                got: 2
+            })
         );
     }
 

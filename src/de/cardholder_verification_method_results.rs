@@ -55,7 +55,9 @@ impl CardholderVerificationMethodResults {
                 got: data.len(),
             });
         }
-        Ok(CardholderVerificationMethodResults([data[0], data[1], data[2]]))
+        Ok(CardholderVerificationMethodResults([
+            data[0], data[1], data[2],
+        ]))
     }
 
     pub fn to_bytes(&self) -> [u8; 3] {
@@ -104,15 +106,24 @@ mod tests {
     fn parse_wrong_length() {
         assert_eq!(
             CardholderVerificationMethodResults::parse(&[]),
-            Err(Error::WrongLength { expected: 3, got: 0 })
+            Err(Error::WrongLength {
+                expected: 3,
+                got: 0
+            })
         );
         assert_eq!(
             CardholderVerificationMethodResults::parse(&[0; 2]),
-            Err(Error::WrongLength { expected: 3, got: 2 })
+            Err(Error::WrongLength {
+                expected: 3,
+                got: 2
+            })
         );
         assert_eq!(
             CardholderVerificationMethodResults::parse(&[0; 4]),
-            Err(Error::WrongLength { expected: 3, got: 4 })
+            Err(Error::WrongLength {
+                expected: 3,
+                got: 4
+            })
         );
     }
 
@@ -121,7 +132,10 @@ mod tests {
         let r = CardholderVerificationMethodResults::parse(&[0x1E, 0x03, 0x02]).unwrap();
         assert_eq!(r.cvm_performed(), 0x1E);
         assert_eq!(r.cvm_condition(), 0x03);
-        assert_eq!(r.result(), CardholderVerificationMethodResultCode::Successful);
+        assert_eq!(
+            r.result(),
+            CardholderVerificationMethodResultCode::Successful
+        );
     }
 
     #[test]
@@ -139,13 +153,19 @@ mod tests {
     #[test]
     fn result_successful() {
         let r = CardholderVerificationMethodResults::parse(&[0x04, 0x00, 0x02]).unwrap();
-        assert_eq!(r.result(), CardholderVerificationMethodResultCode::Successful);
+        assert_eq!(
+            r.result(),
+            CardholderVerificationMethodResultCode::Successful
+        );
     }
 
     #[test]
     fn result_rfu() {
         let r = CardholderVerificationMethodResults::parse(&[0x00, 0x00, 0x7F]).unwrap();
-        assert_eq!(r.result(), CardholderVerificationMethodResultCode::Rfu(0x7F));
+        assert_eq!(
+            r.result(),
+            CardholderVerificationMethodResultCode::Rfu(0x7F)
+        );
     }
 
     #[test]

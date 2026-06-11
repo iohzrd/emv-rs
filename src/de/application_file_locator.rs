@@ -211,10 +211,7 @@ mod tests {
 
     #[test]
     fn empty_afl_rejected() {
-        assert_eq!(
-            ApplicationFileLocator::parse(&[]),
-            Err(Error::InvalidValue),
-        );
+        assert_eq!(ApplicationFileLocator::parse(&[]), Err(Error::InvalidValue),);
     }
 
     #[test]
@@ -225,9 +222,21 @@ mod tests {
         assert_eq!(
             steps,
             vec![
-                ReadStep { sfi: 1, record_number: 1, in_oda: false },
-                ReadStep { sfi: 1, record_number: 2, in_oda: false },
-                ReadStep { sfi: 1, record_number: 3, in_oda: false },
+                ReadStep {
+                    sfi: 1,
+                    record_number: 1,
+                    in_oda: false
+                },
+                ReadStep {
+                    sfi: 1,
+                    record_number: 2,
+                    in_oda: false
+                },
+                ReadStep {
+                    sfi: 1,
+                    record_number: 3,
+                    in_oda: false
+                },
             ]
         );
     }
@@ -239,9 +248,21 @@ mod tests {
         assert_eq!(
             steps,
             vec![
-                ReadStep { sfi: 2, record_number: 1, in_oda: true },
-                ReadStep { sfi: 2, record_number: 2, in_oda: true },
-                ReadStep { sfi: 2, record_number: 3, in_oda: false },
+                ReadStep {
+                    sfi: 2,
+                    record_number: 1,
+                    in_oda: true
+                },
+                ReadStep {
+                    sfi: 2,
+                    record_number: 2,
+                    in_oda: true
+                },
+                ReadStep {
+                    sfi: 2,
+                    record_number: 3,
+                    in_oda: false
+                },
             ]
         );
     }
@@ -253,8 +274,16 @@ mod tests {
         assert_eq!(
             steps,
             vec![
-                ReadStep { sfi: 3, record_number: 4, in_oda: true },
-                ReadStep { sfi: 3, record_number: 5, in_oda: true },
+                ReadStep {
+                    sfi: 3,
+                    record_number: 4,
+                    in_oda: true
+                },
+                ReadStep {
+                    sfi: 3,
+                    record_number: 5,
+                    in_oda: true
+                },
             ]
         );
     }
@@ -267,9 +296,21 @@ mod tests {
         assert_eq!(
             steps,
             vec![
-                ReadStep { sfi: 1, record_number: 1, in_oda: true },
-                ReadStep { sfi: 1, record_number: 2, in_oda: false },
-                ReadStep { sfi: 2, record_number: 1, in_oda: false },
+                ReadStep {
+                    sfi: 1,
+                    record_number: 1,
+                    in_oda: true
+                },
+                ReadStep {
+                    sfi: 1,
+                    record_number: 2,
+                    in_oda: false
+                },
+                ReadStep {
+                    sfi: 2,
+                    record_number: 1,
+                    in_oda: false
+                },
             ]
         );
     }
@@ -286,7 +327,11 @@ mod tests {
         let steps: Vec<_> = afl.iter_reads().collect();
         assert_eq!(
             steps,
-            vec![ReadStep { sfi: 1, record_number: 5, in_oda: true }],
+            vec![ReadStep {
+                sfi: 1,
+                record_number: 5,
+                in_oda: true
+            }],
         );
     }
 }

@@ -154,10 +154,8 @@ pub fn evaluate(ctx: &TerminalRiskManagementContext) -> Result<TerminalRiskManag
     Ok(TerminalRiskManagementOutcome {
         transaction_exceeds_floor_limit: exceeds_floor,
         transaction_selected_randomly_for_online_processing: rts_selected,
-        lower_consecutive_offline_limit_exceeded: velocity
-            .lower_consecutive_offline_limit_exceeded,
-        upper_consecutive_offline_limit_exceeded: velocity
-            .upper_consecutive_offline_limit_exceeded,
+        lower_consecutive_offline_limit_exceeded: velocity.lower_consecutive_offline_limit_exceeded,
+        upper_consecutive_offline_limit_exceeded: velocity.upper_consecutive_offline_limit_exceeded,
         new_card: velocity.new_card,
     })
 }
@@ -387,7 +385,10 @@ mod tests {
             atc: Some(10),
             last_online_atc_register: Some(8),
         };
-        assert_eq!(evaluate(&ctx).unwrap(), TerminalRiskManagementOutcome::default());
+        assert_eq!(
+            evaluate(&ctx).unwrap(),
+            TerminalRiskManagementOutcome::default()
+        );
     }
 
     #[test]

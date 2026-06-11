@@ -124,22 +124,34 @@ mod tests {
             false,
         )];
         let t = sample_terminal(apps);
-        assert!(t.find_application(&[0xA0, 0, 0, 0, 0x03, 0x10, 0x10]).is_some());
-        assert!(t.find_application(&[0xA0, 0, 0, 0, 0x03, 0x10, 0x11]).is_none());
+        assert!(
+            t.find_application(&[0xA0, 0, 0, 0, 0x03, 0x10, 0x10])
+                .is_some()
+        );
+        assert!(
+            t.find_application(&[0xA0, 0, 0, 0, 0x03, 0x10, 0x11])
+                .is_none()
+        );
     }
 
     #[test]
     fn find_application_partial_match_when_allowed() {
         let apps = vec![sample_terminal_app(vec![0xA0, 0, 0, 0, 0x03], true)];
         let t = sample_terminal(apps);
-        assert!(t.find_application(&[0xA0, 0, 0, 0, 0x03, 0x10, 0x10]).is_some());
+        assert!(
+            t.find_application(&[0xA0, 0, 0, 0, 0x03, 0x10, 0x10])
+                .is_some()
+        );
     }
 
     #[test]
     fn find_application_partial_rejected_when_not_allowed() {
         let apps = vec![sample_terminal_app(vec![0xA0, 0, 0, 0, 0x03], false)];
         let t = sample_terminal(apps);
-        assert!(t.find_application(&[0xA0, 0, 0, 0, 0x03, 0x10, 0x10]).is_none());
+        assert!(
+            t.find_application(&[0xA0, 0, 0, 0, 0x03, 0x10, 0x10])
+                .is_none()
+        );
     }
 
     #[test]
@@ -157,7 +169,10 @@ mod tests {
 
     #[test]
     fn find_application_none_when_df_shorter_than_aid() {
-        let apps = vec![sample_terminal_app(vec![0xA0, 0, 0, 0, 0x03, 0x10, 0x10], true)];
+        let apps = vec![sample_terminal_app(
+            vec![0xA0, 0, 0, 0, 0x03, 0x10, 0x10],
+            true,
+        )];
         let t = sample_terminal(apps);
         assert!(t.find_application(&[0xA0, 0, 0]).is_none());
     }

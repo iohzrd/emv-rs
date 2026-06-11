@@ -1,7 +1,7 @@
 //! Book 3 §10.8 p.127 - Card Action Analysis.
 
 use crate::de::cryptogram_information_data::{
-    CryptogramInformationData, ApplicationCryptogramType, ReasonAdviceCode,
+    ApplicationCryptogramType, CryptogramInformationData, ReasonAdviceCode,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

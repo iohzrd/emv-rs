@@ -59,10 +59,10 @@ mod tests {
 
     #[test]
     fn display_masks_all_but_rightmost_four() {
-        let pan =
-            ApplicationPrimaryAccountNumber::parse(&[0x54, 0x13, 0x33, 0x00, 0x89, 0x60, 0x39,
-                0x4F])
-            .unwrap();
+        let pan = ApplicationPrimaryAccountNumber::parse(&[
+            0x54, 0x13, 0x33, 0x00, 0x89, 0x60, 0x39, 0x4F,
+        ])
+        .unwrap();
         assert_eq!(pan.to_string(), "••••0394");
     }
 
@@ -74,10 +74,10 @@ mod tests {
 
     #[test]
     fn debug_is_masked() {
-        let pan =
-            ApplicationPrimaryAccountNumber::parse(&[0x12, 0x34, 0x56, 0x78, 0x90, 0x12, 0x3F,
-                0xFF])
-            .unwrap();
+        let pan = ApplicationPrimaryAccountNumber::parse(&[
+            0x12, 0x34, 0x56, 0x78, 0x90, 0x12, 0x3F, 0xFF,
+        ])
+        .unwrap();
         assert_eq!(
             format!("{pan:?}"),
             "ApplicationPrimaryAccountNumber(••••0123)"

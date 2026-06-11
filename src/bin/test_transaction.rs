@@ -6,29 +6,29 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use emv::config::{AidsConfig, CapkConfig, CrlConfig, TerminalConfig, assemble_terminal};
 use emv::contact::application_selection::{FinalSelectionOutcome, final_selection};
-use emv::de::authorisation_response_code::AuthorisationResponseCode;
-use emv::core::application_cryptogram_type::ApplicationCryptogramType;
-use emv::core::dol::Dol;
-use emv::contact::dol_resolve::DolResolveExt;
 use emv::contact::card_action_analysis::CardAction;
-use emv::core::generate_ac::{GenerateAcResponse, SignatureRequest};
-use emv::de::issuer_script_results::ScriptResultNibble;
+use emv::contact::cardholder_verification::{self, CvmExecutionResult};
+use emv::contact::dol_resolve::DolResolveExt;
 use emv::contact::issuer_script::{ScriptOutcome, ScriptProcessingOutcome, ScriptTag};
-use emv::core::tlv::Tlv;
 use emv::contact::online_processing::{
     OnlineAuthorisation, OnlineAuthorisationOutcome, OnlineAuthorisationResponse,
     second_generate_ac_after_online,
 };
-use emv::contact::cardholder_verification::{self, CvmExecutionResult};
 use emv::contact::processing_restrictions::TransactionCategory;
-use emv::core::tag_store::Source;
-use emv::core::tags;
 use emv::contact::terminal::Terminal;
 use emv::contact::transaction::CvmFlags;
 use emv::contact::transaction::{TransactionContext, TransactionInputs};
 use emv::contact::transaction_driver::Transaction;
-use emv::config::{AidsConfig, CapkConfig, CrlConfig, TerminalConfig, assemble_terminal};
+use emv::core::application_cryptogram_type::ApplicationCryptogramType;
+use emv::core::dol::Dol;
+use emv::core::generate_ac::{GenerateAcResponse, SignatureRequest};
+use emv::core::tag_store::Source;
+use emv::core::tags;
+use emv::core::tlv::Tlv;
+use emv::de::authorisation_response_code::AuthorisationResponseCode;
+use emv::de::issuer_script_results::ScriptResultNibble;
 use emv::pcsc::PcscCardReader;
 use pcsc::{Context, Protocols, ReaderState, Scope, ShareMode, State};
 
@@ -57,8 +57,9 @@ fn parse_args() -> Result<Args, String> {
                 out.explicit_aid = Some(parse_hex(&v).map_err(|e| format!("--aid: {}", e))?);
             }
             "--terminal" => {
-                out.terminal_path =
-                    Some(PathBuf::from(args.next().ok_or("--terminal requires a path")?));
+                out.terminal_path = Some(PathBuf::from(
+                    args.next().ok_or("--terminal requires a path")?,
+                ));
             }
             "--aids" => {
                 out.aids_path = Some(PathBuf::from(args.next().ok_or("--aids requires a path")?));
@@ -120,7 +121,9 @@ fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(aid) = &args.explicit_aid {
         aids_cfg.aids.retain(|e| {
-            parse_hex(&e.aid).map(|bytes| bytes == *aid).unwrap_or(false)
+            parse_hex(&e.aid)
+                .map(|bytes| bytes == *aid)
+                .unwrap_or(false)
         });
         if aids_cfg.aids.is_empty() {
             aids_cfg.aids.push(emv::config::AidEntry {
@@ -142,19 +145,19 @@ fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     }
     println!("Loaded {} AID(s)", aids_cfg.aids.len());
 
-    let (rsa_keys, ecc_keys) =
-        match resolve_optional_config(args.capk_path.as_deref(), "capk.toml") {
-            Ok(Some(p)) => {
-                println!("Loading CAPKs from {}", p.display());
-                let cfg = CapkConfig::load(&p)?;
-                cfg.into_kernel()?
-            }
-            Ok(None) => {
-                println!("No CAPK config found - ODA verification will not be exercised.");
-                (vec![], vec![])
-            }
-            Err(e) => return Err(e),
-        };
+    let (rsa_keys, ecc_keys) = match resolve_optional_config(args.capk_path.as_deref(), "capk.toml")
+    {
+        Ok(Some(p)) => {
+            println!("Loading CAPKs from {}", p.display());
+            let cfg = CapkConfig::load(&p)?;
+            cfg.into_kernel()?
+        }
+        Ok(None) => {
+            println!("No CAPK config found - ODA verification will not be exercised.");
+            (vec![], vec![])
+        }
+        Err(e) => return Err(e),
+    };
     println!(
         "Loaded {} RSA CAPK(s) and {} ECC CAPK(s)",
         rsa_keys.len(),
@@ -253,13 +256,7 @@ fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
                     .application_priority_indicator
                     .map(|api| api.priority.to_string())
                     .unwrap_or_else(|| "-".into());
-                println!(
-                    "  [{}] {} ({}) priority={}",
-                    i,
-                    hex(&c.df_name),
-                    label,
-                    pri
-                );
+                println!("  [{}] {} ({}) priority={}", i, hex(&c.df_name), label, pri);
             }
 
             let chosen_idx = match final_selection(&candidates, false) {
@@ -316,7 +313,9 @@ fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             pdol.0.len()
         );
     }
-    let _gpo = tx.initiate(&pdol_data).map_err(|e| format!("GPO: {:?}", e))?;
+    let _gpo = tx
+        .initiate(&pdol_data)
+        .map_err(|e| format!("GPO: {:?}", e))?;
     let aip = tx.ctx.aip.as_ref().expect("aip set after initiate");
     let afl = tx.ctx.afl.as_ref().expect("afl set after initiate");
     println!("GPO");
@@ -355,13 +354,19 @@ fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     if xda_armed {
         match tx.ctx.xda.as_ref().map(|x| &x.state) {
             Some(emv::core::oda::XdaArmingState::Armed { .. }) => {
-                println!("  XDA armed: ECC chain recovered; SDAD verification deferred to GENERATE AC.");
+                println!(
+                    "  XDA armed: ECC chain recovered; SDAD verification deferred to GENERATE AC."
+                );
             }
             Some(emv::core::oda::XdaArmingState::CaMissing) => {
-                println!("  XDA selected but CA ECC key missing - TVR bit applied after first GenAC.");
+                println!(
+                    "  XDA selected but CA ECC key missing - TVR bit applied after first GenAC."
+                );
             }
             Some(emv::core::oda::XdaArmingState::RecoveryFailed) => {
-                println!("  XDA selected but ECC recovery failed - TVR bit applied after first GenAC.");
+                println!(
+                    "  XDA selected but ECC recovery failed - TVR bit applied after first GenAC."
+                );
             }
             None => {}
         }
@@ -463,7 +468,10 @@ fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         .run_terminal_risk_management(trm_random, None)
         .map_err(|e| format!("TRM: {:?}", e))?;
     println!("Terminal Risk Management");
-    println!("  Floor limit exceeded:        {}", trm.transaction_exceeds_floor_limit);
+    println!(
+        "  Floor limit exceeded:        {}",
+        trm.transaction_exceeds_floor_limit
+    );
     println!(
         "  Selected randomly for online: {}",
         trm.transaction_selected_randomly_for_online_processing
@@ -507,7 +515,10 @@ fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let signature_request = if xda_armed {
         SignatureRequest::Xda
     } else if cda_armed
-        && matches!(cryptogram, ApplicationCryptogramType::Tc | ApplicationCryptogramType::Arqc)
+        && matches!(
+            cryptogram,
+            ApplicationCryptogramType::Tc | ApplicationCryptogramType::Arqc
+        )
     {
         SignatureRequest::Cda
     } else {
@@ -546,7 +557,10 @@ fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         match tx.verify_cda_first_generate_ac(&first) {
             Ok(verified) => {
                 println!("CDA verified (first GENERATE AC).");
-                println!("  ICC Dynamic Number: {}", hex(&verified.icc_dynamic_number));
+                println!(
+                    "  ICC Dynamic Number: {}",
+                    hex(&verified.icc_dynamic_number)
+                );
                 println!(
                     "  Recovered AC:       {}",
                     hex(&verified.application_cryptogram)
@@ -733,7 +747,10 @@ fn run_online_completion(
         match tx.verify_cda_second_generate_ac(&second) {
             Ok(verified) => {
                 println!("CDA verified (second GENERATE AC).");
-                println!("  ICC Dynamic Number: {}", hex(&verified.icc_dynamic_number));
+                println!(
+                    "  ICC Dynamic Number: {}",
+                    hex(&verified.icc_dynamic_number)
+                );
                 println!(
                     "  Recovered AC:       {}",
                     hex(&verified.application_cryptogram)
@@ -825,7 +842,10 @@ fn run_plaintext_offline_pin(card: &mut PcscCardReader) -> CvmExecutionResult {
     let result = match cardholder_verification::verify_plaintext_offline_pin(card, &pin) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("VERIFY: {:?} - transaction shall be terminated (Book 3 §6.3.5).", e);
+            eprintln!(
+                "VERIFY: {:?} - transaction shall be terminated (Book 3 §6.3.5).",
+                e
+            );
             return CvmExecutionResult::Failed;
         }
     };
@@ -845,11 +865,12 @@ fn run_enciphered_offline_pin(
             return CvmExecutionResult::PinEntryBypassed;
         }
     };
-    let result = cardholder_verification::verify_enciphered_offline_pin(card, &pin, pin_pk, |buf| {
-        File::open("/dev/urandom")
-            .and_then(|mut f| f.read_exact(buf))
-            .is_ok()
-    });
+    let result =
+        cardholder_verification::verify_enciphered_offline_pin(card, &pin, pin_pk, |buf| {
+            File::open("/dev/urandom")
+                .and_then(|mut f| f.read_exact(buf))
+                .is_ok()
+        });
     let result = match result {
         Ok(r) => r,
         Err(e) => {
@@ -886,12 +907,8 @@ impl OnlineAuthorisation for InteractiveHost {
         _ctx: &TransactionContext<'_>,
         _first_ac: &GenerateAcResponse,
     ) -> Result<OnlineAuthorisationResponse, Self::Error> {
-        println!(
-            "Enter online auth response - either a 2-char ARC ('00', '05', 'Z1', …) or a hex"
-        );
-        println!(
-            "BER-TLV blob with tags 8A (ARC), 91 (Issuer Auth Data), 71/72 (Issuer Scripts)."
-        );
+        println!("Enter online auth response - either a 2-char ARC ('00', '05', 'Z1', …) or a hex");
+        println!("BER-TLV blob with tags 8A (ARC), 91 (Issuer Auth Data), 71/72 (Issuer Scripts).");
         print!("[default: ARC=00] > ");
         io::stdout()
             .flush()
@@ -911,7 +928,10 @@ impl OnlineAuthorisation for InteractiveHost {
         }
 
         // 2-char ASCII shortcut for the common decline path.
-        let stripped: String = input.chars().filter(|c| !c.is_whitespace() && *c != '_').collect();
+        let stripped: String = input
+            .chars()
+            .filter(|c| !c.is_whitespace() && *c != '_')
+            .collect();
         if stripped.len() == 2 && !stripped.chars().all(|c| c.is_ascii_hexdigit()) {
             let b = stripped.as_bytes();
             return Ok(OnlineAuthorisationResponse {
@@ -922,8 +942,7 @@ impl OnlineAuthorisation for InteractiveHost {
         }
 
         let bytes = parse_hex(input).map_err(|e| format!("hex decode: {}", e))?;
-        let tlvs = Tlv::parse_all(&bytes)
-            .map_err(|e| format!("BER-TLV parse: {:?}", e))?;
+        let tlvs = Tlv::parse_all(&bytes).map_err(|e| format!("BER-TLV parse: {:?}", e))?;
 
         let mut arc: Option<[u8; 2]> = None;
         let mut iad: Option<Vec<u8>> = None;
@@ -1055,7 +1074,9 @@ fn print_script_outcome(position: &str, outcome: &ScriptProcessingOutcome) {
             ScriptResultNibble::ScriptProcessingSuccessful => "successful",
             ScriptResultNibble::ScriptProcessingFailed => "failed",
             ScriptResultNibble::ScriptNotPerformed => "not performed (parse error)",
-            ScriptResultNibble::Rfu(n) => return println!("  [{}] RFU result nibble {:X}", i + 1, n),
+            ScriptResultNibble::Rfu(n) => {
+                return println!("  [{}] RFU result nibble {:X}", i + 1, n);
+            }
         };
         let seq_str = match result.script_number {
             0 => "n/a".to_string(),

@@ -1,4 +1,4 @@
-//! Book 3 §8 Transaction Flow — host-mediated, over Book 1 §12 Application
+//! Book 3 §8 Transaction Flow - host-mediated, over Book 1 §12 Application
 //! Selection and the Book 3 §10 functions.
 //!
 //! Stepwise driver for terminals where application selection, PIN entry and
@@ -78,15 +78,27 @@ pub enum TerminationReason {
 pub enum TransactionFlowStep {
     /// Book 1 §12.4 requires cardholder selection or confirmation; resume via
     /// [`continue_with_application`].
-    SelectApplication { candidates: Vec<Candidate> },
+    SelectApplication {
+        candidates: Vec<Candidate>,
+    },
     /// Book 3 §10.5 selected a PIN CVM; resume via [`submit_pin`].
-    CardholderVerification { requirement: PinRequirement },
-    /// Book 3 §10.9 — ARQC; resume via [`submit_authorisation_response`], or
+    CardholderVerification {
+        requirement: PinRequirement,
+    },
+    /// Book 3 §10.9 - ARQC; resume via [`submit_authorisation_response`], or
     /// [`submit_unable_to_go_online`] if the authorisation cannot complete.
-    OnlineRequest { first_generate_ac: GenerateAcResponse },
-    Approved { generate_ac: GenerateAcResponse },
-    Declined { generate_ac: GenerateAcResponse },
-    Terminated { reason: TerminationReason },
+    OnlineRequest {
+        first_generate_ac: GenerateAcResponse,
+    },
+    Approved {
+        generate_ac: GenerateAcResponse,
+    },
+    Declined {
+        generate_ac: GenerateAcResponse,
+    },
+    Terminated {
+        reason: TerminationReason,
+    },
 }
 
 /// Book 1 §12.3 discovery + §12.4 final selection, auto-continuing into the
@@ -153,7 +165,7 @@ pub fn start<C: CardReader>(
 
 /// Resume after the host selected or confirmed an application. If the
 /// application cannot be used it is removed from `candidates` and the
-/// remaining list is re-presented (Book 1 §12.4 — once a cardholder-chosen
+/// remaining list is re-presented (Book 1 §12.4 - once a cardholder-chosen
 /// application is removed, no application is selected without the
 /// cardholder).
 pub fn continue_with_application<C: CardReader>(
@@ -189,7 +201,7 @@ pub fn continue_with_application<C: CardReader>(
     }
 }
 
-/// Book 3 §10.5 resume — `pin` as digit values for offline CVMs (ignored for
+/// Book 3 §10.5 resume - `pin` as digit values for offline CVMs (ignored for
 /// online PIN, which the host captures and forwards with the authorisation
 /// request); `fill_random` supplies Book 2 §7.2 padding.
 pub fn submit_pin<C: CardReader>(
@@ -246,7 +258,7 @@ pub fn submit_authorisation_response<C: CardReader>(
     Ok(step)
 }
 
-/// Book 3 §10.7 — default action when the host was unable to process the
+/// Book 3 §10.7 - default action when the host was unable to process the
 /// transaction online. After an XDA failure the transaction declines
 /// (Book 4 §6.3.2.2.4); a first-GENERATE-AC TC completes without a second
 /// GENERATE AC.
@@ -290,7 +302,7 @@ enum PinEntry<'p> {
 
 enum ApplicationAttempt {
     Step(TransactionFlowStep),
-    /// Book 1 §12.4 / Book 3 §10.1 — the application is eliminated from
+    /// Book 1 §12.4 / Book 3 §10.1 - the application is eliminated from
     /// consideration and application selection resumes.
     Eliminated,
 }
@@ -304,7 +316,7 @@ fn attempt_application<C: CardReader>(
     trm_random_selection_number: Option<u8>,
     df_name: &[u8],
 ) -> TransactionFlowResult<ApplicationAttempt, C::Error> {
-    // Book 1 §12.4 — a failed or malformed final SELECT eliminates the
+    // Book 1 §12.4 - a failed or malformed final SELECT eliminates the
     // candidate and selection resumes.
     let fci = match tx.select_application(df_name) {
         Ok(fci) => fci,
@@ -316,7 +328,7 @@ fn attempt_application<C: CardReader>(
         .as_ref()
         .map(|d| d.resolve(&tx.ctx))
         .unwrap_or_default();
-    // Book 3 §10.1 — GPO '6985' eliminates the candidate and selection
+    // Book 3 §10.1 - GPO '6985' eliminates the candidate and selection
     // resumes.
     if let Err(e) = tx.initiate(&pdol_data) {
         return match e {
@@ -403,7 +415,7 @@ fn run_cardholder_verification<C: CardReader>(
         | CardholderVerificationMethod::EncipheredPinVerificationPerformedByIccAndSignature => {
             match (&pin_encipherment_public_key, pin) {
                 (_, PinEntry::Bypassed) => CvmExecutionResult::PinEntryBypassed,
-                // Book 2 §7.1 rule 3 — no usable key: PIN encipherment failed.
+                // Book 2 §7.1 rule 3 - no usable key: PIN encipherment failed.
                 (None, _) => CvmExecutionResult::Failed,
                 (Some(pk), PinEntry::Entered(pin)) => {
                     match verify_enciphered_offline_pin(card, pin, pk, &mut fill_random) {
@@ -434,7 +446,7 @@ fn run_cardholder_verification<C: CardReader>(
     if let Some(failure) = pin_failure {
         return Err(match failure {
             OfflinePinError::Transport(e) => DriverError::Transport(e),
-            // Book 3 §6.3.5 — unallocated status word terminates.
+            // Book 3 §6.3.5 - unallocated status word terminates.
             OfflinePinError::UnallocatedStatusWord(sw) => DriverError::StatusWord {
                 command: "VERIFY",
                 sw,
@@ -454,10 +466,7 @@ fn continue_after_cardholder_verification<C: CardReader>(
     tx: &mut Transaction<'_, C, HostMediated>,
     trm_random_selection_number: Option<u8>,
 ) -> TransactionFlowResult<TransactionFlowStep, C::Error> {
-    tx.run_terminal_risk_management(
-        trm_random_selection_number.map(|n| n.clamp(1, 99)),
-        None,
-    )?;
+    tx.run_terminal_risk_management(trm_random_selection_number.map(|n| n.clamp(1, 99)), None)?;
 
     let cryptogram = tx.ctx.terminal_action_analysis(false)?;
     let cdol1_bytes = tx
@@ -476,7 +485,7 @@ fn continue_after_cardholder_verification<C: CardReader>(
 
     let action = tx.ctx.card_action_analysis(&first).action;
 
-    // Book 4 §6.3.2.2.4 — Terminal Processing After First GENERATE AC XDA
+    // Book 4 §6.3.2.2.4 - Terminal Processing After First GENERATE AC XDA
     // Failure.
     if matches!(signature, SignatureRequest::Xda)
         && xda_failed(&tx.ctx.tvr)
@@ -501,14 +510,14 @@ fn continue_after_cardholder_verification<C: CardReader>(
     }
 
     match action {
-        // Book 4 §6.3.2.1 — a TC with a failed CDA signature is declined
+        // Book 4 §6.3.2.1 - a TC with a failed CDA signature is declined
         // offline without a second GENERATE AC.
         CardAction::Approve if !signature_verified => {
             Ok(TransactionFlowStep::Declined { generate_ac: first })
         }
         CardAction::Approve => Ok(TransactionFlowStep::Approved { generate_ac: first }),
         CardAction::Decline => Ok(TransactionFlowStep::Declined { generate_ac: first }),
-        // Book 4 §6.3.2.1 — an ARQC with a failed CDA signature completes
+        // Book 4 §6.3.2.1 - an ARQC with a failed CDA signature completes
         // with an immediate second GENERATE AC requesting an AAC.
         CardAction::GoOnline if !signature_verified => {
             store_authorisation_response_code(tx, AuthorisationResponseCode::OFFLINE_DECLINED)?;
@@ -526,12 +535,12 @@ fn continue_after_cardholder_verification<C: CardReader>(
     }
 }
 
-/// Book 4 §6.3.2.2.1–§6.3.2.2.3 — the three XDA failure kinds.
+/// Book 4 §6.3.2.2.1–§6.3.2.2.3 - the three XDA failure kinds.
 fn xda_failed(tvr: &TerminalVerificationResults) -> bool {
     tvr.ca_ecc_key_missing || tvr.ecc_key_recovery_failed || tvr.xda_signature_verification_failed
 }
 
-/// Book 3 §10.11 — second GENERATE AC. CDOL2 is mandatory (§7.2 Table 28);
+/// Book 3 §10.11 - second GENERATE AC. CDOL2 is mandatory (§7.2 Table 28);
 /// per §9.3 any higher-level or undefined cryptogram in the response is
 /// treated as an AAC.
 fn complete_with_second_generate_ac<C: CardReader>(
@@ -563,12 +572,17 @@ fn complete_with_second_generate_ac<C: CardReader>(
     }
 }
 
-/// Book 4 Annex A6 — stamp the '8A' the second GENERATE AC's CDOL2 resolves.
+/// Book 4 Annex A6 - stamp the '8A' the second GENERATE AC's CDOL2 resolves.
 fn store_authorisation_response_code<C: CardReader>(
     tx: &mut Transaction<'_, C, HostMediated>,
     code: AuthorisationResponseCode,
 ) -> TransactionFlowResult<(), C::Error> {
-    if tx.ctx.tag_store.get(tags::AUTHORISATION_RESPONSE_CODE).is_none() {
+    if tx
+        .ctx
+        .tag_store
+        .get(tags::AUTHORISATION_RESPONSE_CODE)
+        .is_none()
+    {
         tx.ctx.tag_store.insert_primitive(
             tags::AUTHORISATION_RESPONSE_CODE,
             code.to_bytes().to_vec(),
@@ -612,7 +626,7 @@ fn verify_generate_ac_signature<C: CardReader>(
     match request {
         SignatureRequest::None => true,
         SignatureRequest::Cda => {
-            // §6.6.2 — an AAC carries no CDA signature.
+            // §6.6.2 - an AAC carries no CDA signature.
             if matches!(response.cid.cryptogram_type, Cid::Aac) {
                 return true;
             }
@@ -645,8 +659,7 @@ fn cvm_flags(ctx: &TransactionContext<'_>) -> CvmFlags {
     CvmFlags {
         transaction_in_application_currency: ctx.tag_store.get(tags::APPLICATION_CURRENCY_CODE)
             == Some(transaction_currency.as_slice()),
-        transaction_is_unattended_cash: unattended
-            && matches!(category, TransactionCategory::Cash),
+        transaction_is_unattended_cash: unattended && matches!(category, TransactionCategory::Cash),
         transaction_is_manual_cash: false,
         transaction_is_purchase_with_cashback: matches!(category, TransactionCategory::Purchase)
             && ctx.inputs.amount_other > 0,
@@ -683,9 +696,7 @@ mod tests {
         fn transmit(&mut self, command: &Command) -> Result<Response, Error> {
             if command.to_bytes()?.get(1) == Some(&0xA4) {
                 // Minimal FCI: 6F 07 84 05 <5-byte DF name>.
-                return Response::parse(&[
-                    0x6F, 0x07, 0x84, 0x05, 0xA0, 0, 0, 0, 0x03, 0x90, 0x00,
-                ]);
+                return Response::parse(&[0x6F, 0x07, 0x84, 0x05, 0xA0, 0, 0, 0, 0x03, 0x90, 0x00]);
             }
             Response::parse(&[0x69, 0x85])
         }
@@ -757,7 +768,7 @@ mod tests {
         );
     }
 
-    /// Book 3 §10.1 — GPO '6985' eliminates the candidate; with no other
+    /// Book 3 §10.1 - GPO '6985' eliminates the candidate; with no other
     /// candidate the transaction terminates instead of erroring.
     #[test]
     fn gpo_conditions_not_satisfied_eliminates_candidate() {

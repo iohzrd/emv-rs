@@ -105,10 +105,7 @@ pub fn first_generate_ac_decision(
 
 /// Book 4 §6.3.2.2.4 - TAA using only TAC-Denial / IAC-Denial after a first
 /// GENERATE AC XDA failure; `true` ⇒ decline.
-pub fn denial_decision(
-    tvr: &TerminalVerificationResults,
-    action_codes: &ActionCodes,
-) -> bool {
+pub fn denial_decision(tvr: &TerminalVerificationResults, action_codes: &ActionCodes) -> bool {
     any_bit_in_tvr_matched(
         &tvr.to_bytes(),
         &action_codes.effective_iac_denial(),

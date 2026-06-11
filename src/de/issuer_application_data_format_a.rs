@@ -100,15 +100,24 @@ mod tests {
     fn parse_wrong_length() {
         assert_eq!(
             IssuerApplicationDataFormatA::parse(&[]),
-            Err(Error::WrongLength { expected: 32, got: 0 })
+            Err(Error::WrongLength {
+                expected: 32,
+                got: 0
+            })
         );
         assert_eq!(
             IssuerApplicationDataFormatA::parse(&[0; 31]),
-            Err(Error::WrongLength { expected: 32, got: 31 })
+            Err(Error::WrongLength {
+                expected: 32,
+                got: 31
+            })
         );
         assert_eq!(
             IssuerApplicationDataFormatA::parse(&[0; 33]),
-            Err(Error::WrongLength { expected: 32, got: 33 })
+            Err(Error::WrongLength {
+                expected: 32,
+                got: 33
+            })
         );
     }
 
@@ -116,13 +125,19 @@ mod tests {
     fn parse_rejects_wrong_byte1() {
         let mut b = sample();
         b[0] = 0x0E;
-        assert_eq!(IssuerApplicationDataFormatA::parse(&b), Err(Error::InvalidValue));
+        assert_eq!(
+            IssuerApplicationDataFormatA::parse(&b),
+            Err(Error::InvalidValue)
+        );
     }
 
     #[test]
     fn parse_rejects_wrong_byte17() {
         let mut b = sample();
         b[16] = 0x00;
-        assert_eq!(IssuerApplicationDataFormatA::parse(&b), Err(Error::InvalidValue));
+        assert_eq!(
+            IssuerApplicationDataFormatA::parse(&b),
+            Err(Error::InvalidValue)
+        );
     }
 }

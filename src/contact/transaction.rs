@@ -1,7 +1,21 @@
 //! Book 3 §10 - Transaction-time context.
 
+use crate::contact::card_action_analysis::{self, CardActionAnalysis};
 use crate::contact::cardholder_verification::{
     self, CvmContext, CvmExecutionResult, CvmProcessingOutcome, CvmTerminalSupport,
+};
+use crate::contact::processing_restrictions::{
+    self, CountryCode, EmvDate, ProcessingRestrictionsContext, ProcessingRestrictionsOutcome,
+    TransactionCategory,
+};
+use crate::contact::terminal::{Terminal, TerminalApplication};
+use crate::core::error::{Error, Result};
+use crate::core::generate_ac::GenerateAcResponse;
+use crate::core::oda::{CdaArming, XdaArming};
+use crate::core::tag_store::TagStore;
+use crate::core::tags;
+use crate::core::terminal_action_analysis::{
+    self, ActionCodes, ApplicationCryptogramType, TerminalCapability,
 };
 use crate::de::application_file_locator::ApplicationFileLocator;
 use crate::de::application_interchange_profile::ApplicationInterchangeProfile;
@@ -14,20 +28,6 @@ use crate::de::terminal_capabilities::TerminalCapabilities;
 use crate::de::terminal_type::AttendanceCapability;
 use crate::de::terminal_verification_results::TerminalVerificationResults;
 use crate::de::transaction_status_information::TransactionStatusInformation;
-use crate::core::error::{Error, Result};
-use crate::contact::card_action_analysis::{self, CardActionAnalysis};
-use crate::core::generate_ac::GenerateAcResponse;
-use crate::core::oda::{CdaArming, XdaArming};
-use crate::contact::processing_restrictions::{
-    self, CountryCode, EmvDate, ProcessingRestrictionsContext, ProcessingRestrictionsOutcome,
-    TransactionCategory,
-};
-use crate::core::tag_store::TagStore;
-use crate::core::tags;
-use crate::contact::terminal::{Terminal, TerminalApplication};
-use crate::core::terminal_action_analysis::{
-    self, ActionCodes, ApplicationCryptogramType, TerminalCapability,
-};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct TransactionInputs {
@@ -147,7 +147,10 @@ impl<'t> TransactionContext<'t> {
 
         let terminal_cc: CountryCode = bcd_country_code(self.terminal.terminal_country_code);
 
-        let terminal_is_atm = self.terminal.terminal_type.is_unattended_financial_institution()
+        let terminal_is_atm = self
+            .terminal
+            .terminal_type
+            .is_unattended_financial_institution()
             && self.terminal.additional_terminal_capabilities.cash;
 
         let effective: Option<EmvDate> = self
@@ -161,11 +164,12 @@ impl<'t> TransactionContext<'t> {
             })
             .transpose()?;
 
-        let expiration_bytes = self.tag_store.get(tags::APPLICATION_EXPIRATION_DATE).ok_or(
-            Error::MissingMandatory {
+        let expiration_bytes = self
+            .tag_store
+            .get(tags::APPLICATION_EXPIRATION_DATE)
+            .ok_or(Error::MissingMandatory {
                 tag: tags::APPLICATION_EXPIRATION_DATE,
-            },
-        )?;
+            })?;
         let expiration: EmvDate =
             <[u8; 3]>::try_from(expiration_bytes).map_err(|_| Error::WrongLength {
                 expected: 3,
@@ -243,7 +247,7 @@ impl<'t> TransactionContext<'t> {
         ))
     }
 
-    /// Book 4 §6.3.2.2.4 — TAA using TAC-Denial / IAC-Denial after a first
+    /// Book 4 §6.3.2.2.4 - TAA using TAC-Denial / IAC-Denial after a first
     /// GENERATE AC XDA failure; `true` ⇒ decline.
     pub fn xda_failure_denial_decision(&self) -> Result<bool> {
         Ok(terminal_action_analysis::denial_decision(
@@ -252,7 +256,7 @@ impl<'t> TransactionContext<'t> {
         ))
     }
 
-    /// §10.7 — default-action decision when the terminal was unable to
+    /// §10.7 - default-action decision when the terminal was unable to
     /// process the transaction online.
     pub fn unable_to_go_online_decision(&self) -> Result<ApplicationCryptogramType> {
         Ok(terminal_action_analysis::unable_to_go_online_decision(
@@ -320,11 +324,8 @@ impl<'t> TransactionContext<'t> {
             .map(CardholderVerificationMethodList::parse)
             .transpose()?;
 
-        let outcome = cardholder_verification::process_cvm_list(
-            parsed_list.as_ref(),
-            &cvm_ctx,
-            perform,
-        );
+        let outcome =
+            cardholder_verification::process_cvm_list(parsed_list.as_ref(), &cvm_ctx, perform);
 
         // Book 4 §6.3.4.5 - store '9F34'.
         self.tag_store.insert_primitive(
@@ -356,9 +357,8 @@ impl<'t> TransactionContext<'t> {
 
 fn derive_cvm_support(caps: &TerminalCapabilities) -> CvmTerminalSupport {
     let plaintext = caps.plaintext_pin_for_icc_verification;
-    let enciphered_offline =
-        caps.enciphered_pin_for_offline_verification_rsa_ode
-            || caps.enciphered_pin_for_offline_verification_ecc_ode;
+    let enciphered_offline = caps.enciphered_pin_for_offline_verification_rsa_ode
+        || caps.enciphered_pin_for_offline_verification_ecc_ode;
     let signature = caps.signature;
     CvmTerminalSupport {
         plaintext_offline_pin_by_icc: plaintext,
@@ -520,7 +520,11 @@ mod tests {
             .insert_primitive(tags::APPLICATION_VERSION_NUMBER_ICC, vec![0, 1], src)
             .unwrap();
         ctx.tag_store
-            .insert_primitive(tags::APPLICATION_EFFECTIVE_DATE, vec![0x25, 0x01, 0x01], src)
+            .insert_primitive(
+                tags::APPLICATION_EFFECTIVE_DATE,
+                vec![0x25, 0x01, 0x01],
+                src,
+            )
             .unwrap();
         populate_pr_minimal(&mut ctx);
 
@@ -570,7 +574,11 @@ mod tests {
             .unwrap();
         let src = crate::core::tag_store::Source::Record { sfi: 1, record: 1 };
         ctx.tag_store
-            .insert_primitive(tags::APPLICATION_EXPIRATION_DATE, vec![0x26, 0x12, 0x31], src)
+            .insert_primitive(
+                tags::APPLICATION_EXPIRATION_DATE,
+                vec![0x26, 0x12, 0x31],
+                src,
+            )
             .unwrap();
 
         let outcome = ctx
@@ -646,7 +654,11 @@ mod tests {
             .insert_primitive(tags::APPLICATION_VERSION_NUMBER_ICC, vec![0xFF, 0xFF], src)
             .unwrap();
         ctx.tag_store
-            .insert_primitive(tags::APPLICATION_EFFECTIVE_DATE, vec![0x27, 0x01, 0x01], src)
+            .insert_primitive(
+                tags::APPLICATION_EFFECTIVE_DATE,
+                vec![0x27, 0x01, 0x01],
+                src,
+            )
             .unwrap();
         populate_pr_minimal(&mut ctx);
 
@@ -811,11 +823,7 @@ mod tests {
         }
     }
 
-    fn terminal_with_cvm_caps(
-        signature: bool,
-        no_cvm: bool,
-        plaintext_pin: bool,
-    ) -> Terminal {
+    fn terminal_with_cvm_caps(signature: bool, no_cvm: bool, plaintext_pin: bool) -> Terminal {
         let mut t = sample_terminal();
         t.terminal_capabilities = TerminalCapabilities {
             ic_with_contacts: true,
@@ -834,9 +842,7 @@ mod tests {
         ctx.select_application(vec![0xA0, 0, 0, 0, 0x03, 0x10, 0x10])
             .unwrap();
         let outcome = ctx
-            .cardholder_verification(CvmFlags::default(), |_| {
-                CvmExecutionResult::Successful
-            })
+            .cardholder_verification(CvmFlags::default(), |_| CvmExecutionResult::Successful)
             .unwrap();
         assert_eq!(outcome.cvm_results, [0x3F, 0x00, 0x00]);
         assert!(!outcome.tsi_cardholder_verification_was_performed);
@@ -853,11 +859,7 @@ mod tests {
         let mut ctx = TransactionContext::new(&terminal, TransactionInputs::default());
         ctx.select_application(vec![0xA0, 0, 0, 0, 0x03, 0x10, 0x10])
             .unwrap();
-        let cvm_list_value = vec![
-            0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,
-            0x1F, 0x00,
-        ];
+        let cvm_list_value = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F, 0x00];
         ctx.tag_store
             .insert_primitive(
                 tags::CVM_LIST,
@@ -886,10 +888,7 @@ mod tests {
         let mut ctx = TransactionContext::new(&terminal, TransactionInputs::default());
         ctx.select_application(vec![0xA0, 0, 0, 0, 0x03, 0x10, 0x10])
             .unwrap();
-        let cvm_list_value = vec![
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x1E, 0x00,
-        ];
+        let cvm_list_value = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1E, 0x00];
         ctx.tag_store
             .insert_primitive(
                 tags::CVM_LIST,
@@ -898,9 +897,7 @@ mod tests {
             )
             .unwrap();
         let outcome = ctx
-            .cardholder_verification(CvmFlags::default(), |_| {
-                CvmExecutionResult::Unknown
-            })
+            .cardholder_verification(CvmFlags::default(), |_| CvmExecutionResult::Unknown)
             .unwrap();
         assert_eq!(outcome.cvm_results, [0x1E, 0x00, 0x00]);
         assert!(ctx.tsi.cardholder_verification_was_performed);
@@ -913,9 +910,7 @@ mod tests {
         ctx.select_application(vec![0xA0, 0, 0, 0, 0x03, 0x10, 0x10])
             .unwrap();
         let cvm_list_value = vec![
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x41, 0x00,
-            0x1F, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x41, 0x00, 0x1F, 0x00,
         ];
         ctx.tag_store
             .insert_primitive(
@@ -935,7 +930,10 @@ mod tests {
             })
             .unwrap();
         assert_eq!(outcome.cvm_results, [0x1F, 0x00, 0x02]);
-        assert!(ctx.tvr.pin_entry_required_and_pin_pad_not_present_or_not_working);
+        assert!(
+            ctx.tvr
+                .pin_entry_required_and_pin_pad_not_present_or_not_working
+        );
         assert!(ctx.tsi.cardholder_verification_was_performed);
         assert!(!ctx.tvr.cardholder_verification_was_not_successful);
     }
@@ -953,9 +951,7 @@ mod tests {
                 crate::core::tag_store::Source::Record { sfi: 1, record: 1 },
             )
             .unwrap();
-        match ctx.cardholder_verification(CvmFlags::default(), |_| {
-            CvmExecutionResult::Successful
-        }) {
+        match ctx.cardholder_verification(CvmFlags::default(), |_| CvmExecutionResult::Successful) {
             Err(_) => {}
             Ok(o) => panic!("expected parse error, got {:?}", o),
         }
@@ -964,8 +960,8 @@ mod tests {
     // ─── §10.8 Card Action Analysis wiring ───────────────────────────────
 
     fn fixture_first_ac(cid_byte: u8) -> GenerateAcResponse {
-        use crate::de::cryptogram_information_data::CryptogramInformationData;
         use crate::core::generate_ac::GenerateAcFormat;
+        use crate::de::cryptogram_information_data::CryptogramInformationData;
         GenerateAcResponse {
             format: GenerateAcFormat::Format1,
             cid: CryptogramInformationData::parse(&[cid_byte]).unwrap(),
@@ -984,7 +980,10 @@ mod tests {
         let mut ctx = TransactionContext::new(&terminal, TransactionInputs::default());
         let first = fixture_first_ac(0x40);
         let analysis = ctx.card_action_analysis(&first);
-        assert_eq!(analysis.action, crate::contact::card_action_analysis::CardAction::Approve);
+        assert_eq!(
+            analysis.action,
+            crate::contact::card_action_analysis::CardAction::Approve
+        );
         assert!(!analysis.advice_required);
         assert!(ctx.tsi.card_risk_management_was_performed);
     }
@@ -995,7 +994,10 @@ mod tests {
         let mut ctx = TransactionContext::new(&terminal, TransactionInputs::default());
         let first = fixture_first_ac(0x00);
         let analysis = ctx.card_action_analysis(&first);
-        assert_eq!(analysis.action, crate::contact::card_action_analysis::CardAction::Decline);
+        assert_eq!(
+            analysis.action,
+            crate::contact::card_action_analysis::CardAction::Decline
+        );
         assert!(ctx.tsi.card_risk_management_was_performed);
     }
 
@@ -1005,7 +1007,10 @@ mod tests {
         let mut ctx = TransactionContext::new(&terminal, TransactionInputs::default());
         let first = fixture_first_ac(0x80);
         let analysis = ctx.card_action_analysis(&first);
-        assert_eq!(analysis.action, crate::contact::card_action_analysis::CardAction::GoOnline);
+        assert_eq!(
+            analysis.action,
+            crate::contact::card_action_analysis::CardAction::GoOnline
+        );
         assert!(ctx.tsi.card_risk_management_was_performed);
     }
 
@@ -1027,7 +1032,10 @@ mod tests {
         let mut ctx = TransactionContext::new(&terminal, TransactionInputs::default());
         let first = fixture_first_ac(0x88);
         let analysis = ctx.card_action_analysis(&first);
-        assert_eq!(analysis.action, crate::contact::card_action_analysis::CardAction::GoOnline);
+        assert_eq!(
+            analysis.action,
+            crate::contact::card_action_analysis::CardAction::GoOnline
+        );
         assert!(analysis.advice_required);
     }
 
@@ -1057,10 +1065,7 @@ mod tests {
         ctx.select_application(vec![0xA0, 0, 0, 0, 0x03, 0x10, 0x10])
             .unwrap();
         let cvm_list_value = vec![
-            0x00, 0x00, 0x00, 0x64,
-            0x00, 0x00, 0x00, 0x00,
-            0x1E, 0x06,
-            0x1F, 0x00,
+            0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x1E, 0x06, 0x1F, 0x00,
         ];
         ctx.tag_store
             .insert_primitive(

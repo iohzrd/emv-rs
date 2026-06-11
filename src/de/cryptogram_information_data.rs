@@ -1,7 +1,7 @@
 //! Cryptogram Information Data (tag 9F27) - Book 3 §6.5.5, Table 15.
 
-use crate::core::error::{Error, Result};
 pub use crate::core::application_cryptogram_type::ApplicationCryptogramType;
+use crate::core::error::{Error, Result};
 
 const PAYMENT_SYSTEM_SPECIFIC_MASK: u8 = 0b0000_0011;
 
@@ -114,11 +114,17 @@ mod tests {
     fn parse_wrong_length() {
         assert_eq!(
             CryptogramInformationData::parse(&[]),
-            Err(Error::WrongLength { expected: 1, got: 0 })
+            Err(Error::WrongLength {
+                expected: 1,
+                got: 0
+            })
         );
         assert_eq!(
             CryptogramInformationData::parse(&[0, 0]),
-            Err(Error::WrongLength { expected: 1, got: 2 })
+            Err(Error::WrongLength {
+                expected: 1,
+                got: 2
+            })
         );
     }
 

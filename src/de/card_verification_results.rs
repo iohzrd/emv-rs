@@ -1,7 +1,7 @@
 //! Card Verification Results (CCD) - Book 3 Annex C9.3, Table CCD 10.
 
-use crate::core::error::{Error, Result};
 use crate::core::application_cryptogram_type::ApplicationCryptogramType;
+use crate::core::error::{Error, Result};
 
 const BYTE_5_RFU_MASK: u8 = 0xFF;
 
@@ -23,8 +23,7 @@ pub enum SecondGenerateApplicationCryptogramType {
 pub struct CardVerificationResults {
     pub application_cryptogram_type_returned_in_second_generate_ac:
         SecondGenerateApplicationCryptogramType,
-    pub application_cryptogram_type_returned_in_first_generate_ac:
-        ApplicationCryptogramType,
+    pub application_cryptogram_type_returned_in_first_generate_ac: ApplicationCryptogramType,
     pub cda_performed: bool,
     pub offline_dda_performed: bool,
     pub issuer_authentication_not_performed: bool,

@@ -8,8 +8,10 @@ pub struct AuthorisationResponseCode(pub [u8; 2]);
 impl AuthorisationResponseCode {
     pub const OFFLINE_APPROVED: AuthorisationResponseCode = AuthorisationResponseCode(*b"Y1");
     pub const OFFLINE_DECLINED: AuthorisationResponseCode = AuthorisationResponseCode(*b"Z1");
-    pub const UNABLE_TO_GO_ONLINE_OFFLINE_APPROVED: AuthorisationResponseCode = AuthorisationResponseCode(*b"Y3");
-    pub const UNABLE_TO_GO_ONLINE_OFFLINE_DECLINED: AuthorisationResponseCode = AuthorisationResponseCode(*b"Z3");
+    pub const UNABLE_TO_GO_ONLINE_OFFLINE_APPROVED: AuthorisationResponseCode =
+        AuthorisationResponseCode(*b"Y3");
+    pub const UNABLE_TO_GO_ONLINE_OFFLINE_DECLINED: AuthorisationResponseCode =
+        AuthorisationResponseCode(*b"Z3");
 
     pub fn parse(data: &[u8]) -> Result<Self> {
         if data.len() != 2 {
@@ -48,9 +50,27 @@ mod tests {
 
     #[test]
     fn as_str_ascii() {
-        assert_eq!(AuthorisationResponseCode::parse(b"Y1").unwrap().as_str().unwrap(), "Y1");
-        assert_eq!(AuthorisationResponseCode::parse(b"Z3").unwrap().as_str().unwrap(), "Z3");
-        assert_eq!(AuthorisationResponseCode::parse(b"00").unwrap().as_str().unwrap(), "00");
+        assert_eq!(
+            AuthorisationResponseCode::parse(b"Y1")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "Y1"
+        );
+        assert_eq!(
+            AuthorisationResponseCode::parse(b"Z3")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "Z3"
+        );
+        assert_eq!(
+            AuthorisationResponseCode::parse(b"00")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "00"
+        );
     }
 
     #[test]
@@ -65,23 +85,44 @@ mod tests {
     fn parse_wrong_length() {
         assert_eq!(
             AuthorisationResponseCode::parse(&[]),
-            Err(Error::WrongLength { expected: 2, got: 0 })
+            Err(Error::WrongLength {
+                expected: 2,
+                got: 0
+            })
         );
         assert_eq!(
             AuthorisationResponseCode::parse(&[b'Y']),
-            Err(Error::WrongLength { expected: 2, got: 1 })
+            Err(Error::WrongLength {
+                expected: 2,
+                got: 1
+            })
         );
         assert_eq!(
             AuthorisationResponseCode::parse(b"Y1Z"),
-            Err(Error::WrongLength { expected: 2, got: 3 })
+            Err(Error::WrongLength {
+                expected: 2,
+                got: 3
+            })
         );
     }
 
     #[test]
     fn table_35_constants() {
-        assert_eq!(AuthorisationResponseCode::OFFLINE_APPROVED.to_bytes(), *b"Y1");
-        assert_eq!(AuthorisationResponseCode::OFFLINE_DECLINED.to_bytes(), *b"Z1");
-        assert_eq!(AuthorisationResponseCode::UNABLE_TO_GO_ONLINE_OFFLINE_APPROVED.to_bytes(), *b"Y3");
-        assert_eq!(AuthorisationResponseCode::UNABLE_TO_GO_ONLINE_OFFLINE_DECLINED.to_bytes(), *b"Z3");
+        assert_eq!(
+            AuthorisationResponseCode::OFFLINE_APPROVED.to_bytes(),
+            *b"Y1"
+        );
+        assert_eq!(
+            AuthorisationResponseCode::OFFLINE_DECLINED.to_bytes(),
+            *b"Z1"
+        );
+        assert_eq!(
+            AuthorisationResponseCode::UNABLE_TO_GO_ONLINE_OFFLINE_APPROVED.to_bytes(),
+            *b"Y3"
+        );
+        assert_eq!(
+            AuthorisationResponseCode::UNABLE_TO_GO_ONLINE_OFFLINE_DECLINED.to_bytes(),
+            *b"Z3"
+        );
     }
 }
