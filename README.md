@@ -1,6 +1,6 @@
 # emv-rs
 
-A pure-Rust [EMV 4.4](https://www.emvco.com/specifications/) kernel.
+A pure-Rust [EMV 4.4 (2022)](https://www.emvco.com/specifications/) kernel.
 
 ## Running a transaction
 
