@@ -31,6 +31,57 @@ approved, `"05"` ⇒ declined, `"Z1"` ⇒ terminal-set offline-decline, etc).
 
 `$EMV_CONFIG_DIR` is also honoured if no explicit `--*` flag is given.
 
+## Host-mediated transaction flow
+
+For embedding the kernel,
+[`contact::transaction_flow`](src/contact/transaction_flow.rs) exposes the
+Book 3 §8 flow as a stepwise state machine: each entry point drives the card
+as far as it can, then returns a `TransactionFlowStep` naming what the host
+(your POS application, HSM bridge, test harness, …) must provide before the
+flow can resume.
+
+| Step returned                          | Meaning                                                                              | Resume via                                                     |
+| -------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `SelectApplication`                    | Final Selection (Book 1 §12.4) requires cardholder selection or confirmation         | `continue_with_application`                                     |
+| `CardholderVerification`               | Cardholder Verification (Book 3 §10.5) selected a PIN-based CVM                      | `submit_pin` / `bypass_pin_entry`                               |
+| `OnlineRequest`                        | First GENERATE AC returned an ARQC (Book 3 §10.8); Online Processing (§10.9) pending | `submit_authorisation_response` / `submit_unable_to_go_online`  |
+| `Approved` / `Declined` / `Terminated` | Final outcome                                                                        | —                                                               |
+
+```rust,ignore
+use emv::contact::transaction_driver::Transaction;
+use emv::contact::transaction_flow::{self, HostMediated, TransactionFlowStep};
+
+let mut tx = Transaction::new(reader, &terminal, inputs, HostMediated);
+let mut step = transaction_flow::start(&mut tx, &capks, &ecc_capks, &crl, None)?;
+let outcome = loop {
+    step = match step {
+        TransactionFlowStep::SelectApplication { mut candidates } => {
+            let df_name = present_to_cardholder(&candidates);
+            transaction_flow::continue_with_application(
+                &mut tx, &capks, &ecc_capks, &crl, None, &mut candidates, &df_name,
+            )?
+        }
+        TransactionFlowStep::CardholderVerification { requirement } => {
+            let pin = prompt_pin(requirement);
+            transaction_flow::submit_pin(&mut tx, &capks, None, &pin, fill_random)?
+        }
+        TransactionFlowStep::OnlineRequest { first_generate_ac } => {
+            let (response, outcome) = authorise_with_issuer(&tx, &first_generate_ac);
+            transaction_flow::submit_authorisation_response(
+                &mut tx, &first_generate_ac, &response, outcome,
+            )?
+        }
+        step => break step, // Approved, Declined, Terminated
+    };
+};
+```
+
+The stepwise functions wrap `transaction_driver::Transaction`, whose
+methods for the individual Book 3 §10 functions (Initiate Application
+Processing through Completion, §10.1–§10.11) remain public for terminals
+that need a different processing order — `emv-test-transaction` drives
+them directly.
+
 ## Contactless kernels
 
 The contactless surface is (will be) per-kernel feature-gated so consumers pull only what

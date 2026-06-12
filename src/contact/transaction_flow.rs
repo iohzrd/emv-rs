@@ -85,7 +85,8 @@ pub enum TransactionFlowStep {
     CardholderVerification {
         requirement: PinRequirement,
     },
-    /// Book 3 §10.9 - ARQC; resume via [`submit_authorisation_response`], or
+    /// First GENERATE AC returned an ARQC (Book 3 §10.8); Online Processing
+    /// (§10.9) resumes via [`submit_authorisation_response`], or
     /// [`submit_unable_to_go_online`] if the authorisation cannot complete.
     OnlineRequest {
         first_generate_ac: GenerateAcResponse,
